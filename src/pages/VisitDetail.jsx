@@ -14,8 +14,16 @@ import Cie10MultiPicker from "../components/Cie10MultiPicker";
  */
 
 function fmtDateLong(dateISO) {
-  const d = dateISO ? new Date(dateISO) : new Date();
-  return d.toLocaleDateString("es-EC", { year: "numeric", month: "long", day: "2-digit" });
+  if (!dateISO) return "-";
+
+  const meses = [
+    "enero","febrero","marzo","abril","mayo","junio",
+    "julio","agosto","septiembre","octubre","noviembre","diciembre"
+  ];
+
+  const [year, month, day] = dateISO.split("-");
+
+  return `${parseInt(day)} de ${meses[parseInt(month) - 1]} de ${year}`;
 }
 
 function fmtDateShort(dateISO) {
