@@ -67,7 +67,7 @@ function certificateHTML({ cert, patient, visit }) {
   <div class="page">
     <div class="top">
       <div>
-        <div class="brand">MicMEDIC</div>
+        <div class="brand">Virgen de la Merced</div>
         <div class="muted">${cert.clinic_name || ""}</div>
       </div>
       <div class="doc">
@@ -142,10 +142,10 @@ export default function CertificateModal({ open, onClose, visit, patient }) {
   const [form, setForm] = useState(() => ({
     issue_date: new Date().toISOString().slice(0, 10),
     clinic_name: "Consultorio médico MIC MEDIC",
-    clinic_city: "Salcedo - ECUADOR",
+    clinic_city: "Latacunga - ECUADOR",
 
     doctor_name: "MED. ____________",
-    doctor_specialty: "MEDICINA OCUPACIONAL - MEDICINA GENERAL",
+    doctor_specialty: "EMERGENCIAS, DIABETES Y OBESIDAD",
     doctor_cedula: "",
     doctor_reg: "",
     doctor_phone: "",
@@ -156,7 +156,7 @@ export default function CertificateModal({ open, onClose, visit, patient }) {
     patient_address: "",
 
     contingency: "Enfermedad general",
-    care_type: "Medicina Ocupacional - Medicina general",
+    care_type: "EMERGENCIAS, DIABETES Y OBESIDAD",
     treatment: "Farmacológico",
 
     rest_days: "",

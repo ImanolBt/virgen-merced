@@ -40,15 +40,15 @@ export default function PrescriptionDetail() {
   const [items, setItems] = useState([]);
 
   const doctor = {
-    clinic: "MicMEDIC",
-    fullName: "ESP. ROMO PROCEL DANIELA JACKELINE",
-    specialty: "MEDICINA OCUPACIONAL - MEDICINA GENERAL",
+    clinic: "Virgen de la Merced",
+    fullName: "ESP. WASHINGTON MASAPANTA",
+    specialty: "EMERGENCIAS, DIABETES Y OBESIDAD",
     cedula: "050333534-1",
     regMedico: "0503335341 - 1027 - 2023 - 2599595",
     phone: "0984340286",
-    email: "danitas0z@hotmail.com",
-    address: "Cotopaxi - Salcedo Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)",
-    place: "Salcedo",
+    email: "drwmasapanta@gmail.com",
+    address: "Cotopaxi - Latacunga Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)",
+    place: "Latacunga",
   };
 
   async function loadAll() {
@@ -390,15 +390,15 @@ export default function PrescriptionDetail() {
       <!-- ✅ Firma al final CON ESPACIO PARA FIRMAR -->
       <div id="sig" class="signature-section">
         <div class="signature-line"></div>
-        <div class="doctor-name">ESP. ROMO PROCEL DANIELA JACKELINE</div>
+        <div class="doctor-name">ESP. WASHINGTON MASAPANTA</div>
         <div class="doctor-details">
-          MEDICINA OCUPACIONAL - MEDICINA GENERAL<br/>
+          EMERGENCIAS, DIABETES Y OBESIDAD<br/>
           CÉDULA: 050333534-1<br/>
           REG. MÉDICO: 0503335341 - 1027 - 2023 - 2599595
         </div>
         <div class="doctor-contact">
-          Cotopaxi - Salcedo Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)<br/>
-          Teléfono: 0984340286 | Email: danitas0z@hotmail.com
+          Cotopaxi - Latacunga Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)<br/>
+          Teléfono: 0984340286 | Email: drwmasapanta@gmail.com
         </div>
       </div>
     </div>
@@ -563,7 +563,7 @@ export default function PrescriptionDetail() {
                 <div style={{ flexShrink: 0 }}>
                   <img 
                     src="/logo-top.png" 
-                    alt="MicMEDIC"
+                    alt="Virgen de la Merced"
                     style={{
                       height: "50px",
                       width: "auto",

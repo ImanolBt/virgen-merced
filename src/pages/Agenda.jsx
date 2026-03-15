@@ -4,7 +4,10 @@ import { supabase } from "../lib/supabase";
 /** ===== Helpers ===== */
 const STATUS = [
   { v: "scheduled", t: "Programada" },
+  { v: "pending", t: "Pendiente" },
+  { v: "confirmed", t: "Confirmada" },
   { v: "done", t: "Hecha" },
+  { v: "completed", t: "Completada" },
   { v: "cancelled", t: "Cancelada" },
 ];
 
@@ -47,36 +50,36 @@ function formatLocalDateTime(iso) {
   return `${y}-${m}-${day} ${hh}:${mm}`;
 }
 
+function formatDateOnly(dateStr) {
+  if (!dateStr) return "-";
+  const d = new Date(dateStr + 'T00:00:00');
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString('es-EC', { 
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric' 
+  });
+}
+
+function formatTimeOnly(timeStr) {
+  if (!timeStr) return "-";
+  return timeStr.substring(0, 5);
+}
+
 function digitsOnly(phone) {
   return String(phone || "").replace(/\D/g, "");
 }
 
-/**
- * Convierte a formato WA (E.164 sin "+")
- * Ecuador:
- * - 09xxxxxxxx => 5939xxxxxxxx
- * - 9xxxxxxxx  => 5939xxxxxxxx
- * - 5939xxxxxx => se queda
- */
 function toE164Ecuador(phoneRaw) {
   const digits = digitsOnly(phoneRaw);
-
   if (!digits) return "";
-
-  // ya viene con 593
   if (digits.startsWith("593")) return digits;
-
-  // viene con 0 al inicio (09...)
   if (digits.startsWith("0") && digits.length >= 10) {
     return "593" + digits.slice(1);
   }
-
-  // viene sin 0 (9...)
   if (digits.startsWith("9") && digits.length >= 9) {
     return "593" + digits;
   }
-
-  // fallback: devolver lo que haya (si es otro país, por ejemplo)
   return digits;
 }
 
@@ -84,7 +87,6 @@ function openWhatsApp({ phone, text }) {
   const msg = encodeURIComponent(text || "");
   const e164 = toE164Ecuador(phone);
 
-  // validación mínima: Ecuador suele quedar 12 dígitos (593 + 9 + 8 dígitos = 12)
   if (!e164 || e164.length < 11) {
     alert("Número inválido. Guarda el teléfono como 09xxxxxxxx o +5939xxxxxxxx.");
     return;
@@ -95,10 +97,9 @@ function openWhatsApp({ phone, text }) {
 }
 
 function startOfWeekLocal(dateStr) {
-  // dateStr YYYY-MM-DD
   const d = new Date(`${dateStr}T00:00`);
-  const day = d.getDay(); // 0=Dom .. 6=Sab
-  const diff = (day === 0 ? -6 : 1 - day); // Lunes como inicio
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
   d.setDate(d.getDate() + diff);
   d.setHours(0, 0, 0, 0);
   return d;
@@ -113,7 +114,7 @@ function endOfWeekLocal(dateStr) {
 }
 
 function buildCitaText({ patientName, whenLocal, reason }) {
-  return `MicMEDIC - Cita agendada
+  return `Virgen de la Merced - Cita agendada
 
 Paciente: ${patientName}
 Fecha/Hora: ${whenLocal}
@@ -123,7 +124,7 @@ Por favor confirmar asistencia.`;
 }
 
 function buildReminderText({ patientName, whenLocal, reason }) {
-  return `MicMEDIC - Recordatorio
+  return `Virgen de la Merced - Recordatorio
 
 Paciente: ${patientName}
 Recuerda tu cita:
@@ -136,30 +137,18 @@ Gracias.`;
 /** ===== Page ===== */
 export default function Agenda() {
   const [loading, setLoading] = useState(true);
-
-  // modo: "day" | "week"
   const [mode, setMode] = useState("day");
-
-  // fecha base (para día o semana)
   const [day, setDay] = useState(() => toLocalDateInputValue(new Date()));
-
-  // pacientes
   const [patients, setPatients] = useState([]);
   const [patientId, setPatientId] = useState("");
-
-  // form create
   const [startAtLocal, setStartAtLocal] = useState(() =>
     toLocalDateTimeInputValue(new Date())
   );
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
-
-  // list
   const [items, setItems] = useState([]);
   const [saving, setSaving] = useState(false);
-
-  // editar
-  const [editing, setEditing] = useState(null); // item seleccionado
+  const [editing, setEditing] = useState(null);
   const [editStartLocal, setEditStartLocal] = useState("");
   const [editReason, setEditReason] = useState("");
   const [editNotes, setEditNotes] = useState("");
@@ -189,39 +178,82 @@ export default function Agenda() {
   }
 
   async function loadAppointments() {
+  try {
+    let oldStyleAppointments = [];
+    let newStyleAppointments = [];
+
+    // Cargar citas estilo antiguo (con start_at) - SOLO las que tienen start_at
     if (mode === "day") {
       const startLocal = new Date(`${day}T00:00`);
       const endLocal = new Date(`${day}T23:59:59`);
-      const { data, error } = await supabase
+      const { data: oldData } = await supabase
         .from("appointments")
-        .select(
-          "id, patient_id, start_at, end_at, reason, notes, status, patients(name, phone, cedula)"
-        )
+        .select("id, patient_id, start_at, end_at, reason, notes, status, created_via, patients(name, phone, cedula)")
+        .not("start_at", "is", null)
+        .is("appointment_date", null) // IMPORTANTE: Excluir las del formulario web
         .gte("start_at", startLocal.toISOString())
         .lte("start_at", endLocal.toISOString())
         .order("start_at", { ascending: true });
 
-      if (error) throw error;
-      setItems(data || []);
-      return;
+      oldStyleAppointments = oldData || [];
+    } else {
+      const ws = startOfWeekLocal(day);
+      const we = endOfWeekLocal(day);
+      const { data: oldData } = await supabase
+        .from("appointments")
+        .select("id, patient_id, start_at, end_at, reason, notes, status, created_via, patients(name, phone, cedula)")
+        .not("start_at", "is", null)
+        .is("appointment_date", null) // IMPORTANTE: Excluir las del formulario web
+        .gte("start_at", ws.toISOString())
+        .lte("start_at", we.toISOString())
+        .order("start_at", { ascending: true });
+
+      oldStyleAppointments = oldData || [];
     }
 
-    // week
-    const ws = startOfWeekLocal(day);
-    const we = endOfWeekLocal(day);
-
-    const { data, error } = await supabase
+    // Cargar citas estilo nuevo (con appointment_date + appointment_time) - SOLO del día seleccionado
+    const { data: newData } = await supabase
       .from("appointments")
-      .select(
-        "id, patient_id, start_at, end_at, reason, notes, status, patients(name, phone, cedula)"
-      )
-      .gte("start_at", ws.toISOString())
-      .lte("start_at", we.toISOString())
-      .order("start_at", { ascending: true });
+      .select("*")
+      .not("appointment_date", "is", null)
+      .eq("appointment_date", day)
+      .order("appointment_time", { ascending: true });
 
-    if (error) throw error;
-    setItems(data || []);
+    newStyleAppointments = newData || [];
+
+    // Unificar todo
+    const unified = [
+      ...oldStyleAppointments.map(item => ({
+        ...item,
+        type: 'old',
+        displayName: item.patients?.name || 'Paciente',
+        displayPhone: item.patients?.phone || '-',
+        displayDate: formatLocalDateTime(item.start_at),
+        displayReason: item.reason
+      })),
+      ...newStyleAppointments.map(item => ({
+        ...item,
+        type: 'new',
+        displayName: item.patient_name || 'Paciente',
+        displayPhone: item.patient_phone || '-',
+        displayDate: `${formatDateOnly(item.appointment_date)} ${formatTimeOnly(item.appointment_time)}`,
+        displayReason: item.appointment_type || item.reason
+      }))
+    ];
+
+    // Ordenar por fecha
+    unified.sort((a, b) => {
+      const dateA = a.type === 'old' ? new Date(a.start_at) : new Date(`${a.appointment_date}T${a.appointment_time}`);
+      const dateB = b.type === 'old' ? new Date(b.start_at) : new Date(`${b.appointment_date}T${b.appointment_time}`);
+      return dateA - dateB;
+    });
+
+    setItems(unified);
+  } catch (e) {
+    console.error(e);
+    alert(e?.message || "Error cargando citas");
   }
+}
 
   async function reloadAll() {
     setLoading(true);
@@ -238,7 +270,6 @@ export default function Agenda() {
 
   useEffect(() => {
     reloadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -253,7 +284,6 @@ export default function Agenda() {
         setLoading(false);
       }
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [day, mode]);
 
   async function createAppointment(e) {
@@ -281,7 +311,6 @@ export default function Agenda() {
 
       await loadAppointments();
 
-      // ✅ WhatsApp: chat + mensaje
       if (selectedPatient?.phone) {
         const msg = buildCitaText({
           patientName: selectedPatient.name,
@@ -326,88 +355,57 @@ export default function Agenda() {
     }
   }
 
-  function openEdit(item) {
-    setEditing(item);
-    setEditStartLocal(toLocalDateTimeInputValue(new Date(item.start_at)));
-    setEditReason(item.reason || "");
-    setEditNotes(item.notes || "");
-    setEditStatus(item.status || "scheduled");
-  }
-
-  function closeEdit() {
-    setEditing(null);
-    setEditStartLocal("");
-    setEditReason("");
-    setEditNotes("");
-    setEditStatus("scheduled");
-  }
-
-  async function saveEdit() {
-    if (!editing) return;
-
-    const startIso = localDateTimeToIso(editStartLocal);
-    if (!startIso) return alert("Fecha/hora inválida");
-    if (editReason.trim().length < 3) return alert("Motivo muy corto");
-
+  async function confirmAppointment(id) {
     try {
       const { error } = await supabase
         .from("appointments")
-        .update({
-          start_at: startIso,
-          reason: editReason.trim(),
-          notes: editNotes.trim() || null,
-          status: editStatus,
-        })
-        .eq("id", editing.id);
-
+        .update({ status: "confirmed" })
+        .eq("id", id);
       if (error) throw error;
-
-      closeEdit();
       await loadAppointments();
     } catch (e) {
       console.error(e);
-      alert(e?.message || "Error guardando cambios");
+      alert(e?.message || "Error confirmando");
     }
   }
 
   function sendCitaWhatsApp(item) {
-    const p = item?.patients || {};
-    if (!p.phone) return alert("Este paciente no tiene teléfono registrado.");
+    const phone = item.type === 'old' ? item.patients?.phone : item.patient_phone;
+    const name = item.displayName;
+    
+    if (!phone) return alert("Este paciente no tiene teléfono registrado.");
+
+    const whenLocal = item.type === 'old' 
+      ? formatLocalDateTime(item.start_at)
+      : `${formatDateOnly(item.appointment_date)} ${formatTimeOnly(item.appointment_time)}`;
 
     const msg = buildCitaText({
-      patientName: p.name || "Paciente",
-      whenLocal: formatLocalDateTime(item.start_at),
-      reason: item.reason,
+      patientName: name,
+      whenLocal: whenLocal,
+      reason: item.displayReason,
     });
-    openWhatsApp({ phone: p.phone, text: msg });
+    openWhatsApp({ phone, text: msg });
   }
 
   function sendReminderWhatsApp(item) {
-    const p = item?.patients || {};
-    if (!p.phone) return alert("Este paciente no tiene teléfono registrado.");
+    const phone = item.type === 'old' ? item.patients?.phone : item.patient_phone;
+    const name = item.displayName;
+    
+    if (!phone) return alert("Este paciente no tiene teléfono registrado.");
+
+    const whenLocal = item.type === 'old' 
+      ? formatLocalDateTime(item.start_at)
+      : `${formatDateOnly(item.appointment_date)} ${formatTimeOnly(item.appointment_time)}`;
 
     const msg = buildReminderText({
-      patientName: p.name || "Paciente",
-      whenLocal: formatLocalDateTime(item.start_at),
-      reason: item.reason,
+      patientName: name,
+      whenLocal: whenLocal,
+      reason: item.displayReason,
     });
-    openWhatsApp({ phone: p.phone, text: msg });
+    openWhatsApp({ phone, text: msg });
   }
 
-  function bulkReminder() {
-    const onlyScheduled = items.filter((x) => x.status === "scheduled");
-    if (onlyScheduled.length === 0) {
-      alert("No hay citas programadas para recordar.");
-      return;
-    }
-
-    const ok = confirm(
-      `Se abrirán ${onlyScheduled.length} pestañas de WhatsApp (una por cita programada). ¿Continuar?`
-    );
-    if (!ok) return;
-
-    onlyScheduled.forEach((it) => sendReminderWhatsApp(it));
-  }
+  const pendingCount = items.filter(x => x.status === 'pending').length;
 
   const headerRange = useMemo(() => {
     if (mode === "day") return day;
@@ -426,6 +424,20 @@ export default function Agenda() {
           <div style={{ opacity: 0.75, marginTop: 6 }}>
             Vista: <b>{mode === "day" ? "Día" : "Semana"}</b> — <b>{headerRange}</b>
           </div>
+          {pendingCount > 0 && (
+            <div style={{
+              background: 'linear-gradient(135deg, #ff5252, #ff1744)',
+              color: 'white',
+              padding: '8px 16px',
+              borderRadius: '20px',
+              fontWeight: '600',
+              fontSize: '13px',
+              display: 'inline-block',
+              marginTop: '8px'
+            }}>
+              🔴 {pendingCount} {pendingCount === 1 ? 'cita nueva' : 'citas nuevas'}
+            </div>
+          )}
         </div>
 
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
@@ -457,10 +469,6 @@ export default function Agenda() {
           <button className="mm-btn mm-btn--ghost" onClick={reloadAll} type="button">
             Recargar
           </button>
-
-          <button className="mm-btn" onClick={bulkReminder} type="button">
-            Recordatorio masivo
-          </button>
         </div>
       </div>
 
@@ -469,7 +477,7 @@ export default function Agenda() {
         <section className="mm-card">
           <div className="mm-cardHead">
             <div className="mm-cardTitle">Nueva cita</div>
-            <div className="mm-chip">{saving ? "Guardando..." : "MicMEDIC"}</div>
+            <div className="mm-chip">{saving ? "Guardando..." : "Virgen de la Merced"}</div>
           </div>
 
           <form className="mm-form" onSubmit={createAppointment}>
@@ -520,7 +528,7 @@ export default function Agenda() {
             </button>
 
             <div className="mm-hint">
-              Al agendar, se abre WhatsApp con el chat + mensaje listo (si el paciente tiene teléfono válido).
+              Al agendar, se abre WhatsApp con el chat + mensaje listo.
             </div>
           </form>
         </section>
@@ -537,28 +545,47 @@ export default function Agenda() {
           ) : (
             <div className="mm-list">
               {items.map((it) => {
-                const p = it.patients || {};
                 const statusText =
                   STATUS.find((s) => s.v === it.status)?.t || it.status;
 
+                const isWebForm = it.created_via === 'web_form' || it.type === 'new';
+
                 return (
-                  <div key={it.id} className="mm-item">
+                  <div key={`${it.type}-${it.id}`} className="mm-item">
                     <div className="mm-itemTop" style={{ alignItems: "center" }}>
                       <div className="mm-itemName">
-                        {formatLocalDateTime(it.start_at)} — {p.name || "Paciente"}
+                        {it.displayDate} — {it.displayName}
+                        {isWebForm && (
+                          <span style={{ 
+                            marginLeft: 8, 
+                            fontSize: 11, 
+                            background: '#34B7F1', 
+                            color: 'white', 
+                            padding: '2px 8px', 
+                            borderRadius: 10,
+                            fontWeight: 600
+                          }}>
+                            WEB
+                          </span>
+                        )}
                       </div>
 
                       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                         <div className="mm-chip">{statusText}</div>
 
-                        <button
-                          className="mm-btn mm-btn--ghost"
-                          type="button"
-                          onClick={() => sendCitaWhatsApp(it)}
-                          title="Abrir WhatsApp con mensaje de cita"
-                        >
-                          WhatsApp (cita)
-                        </button>
+                        {it.status === 'pending' && (
+                          <button
+                            className="mm-btn"
+                            type="button"
+                            onClick={() => {
+                              sendCitaWhatsApp(it);
+                              confirmAppointment(it.id);
+                            }}
+                            style={{ background: '#25D366' }}
+                          >
+                            ✓ Confirmar por WhatsApp
+                          </button>
+                        )}
 
                         <button
                           className="mm-btn mm-btn--ghost"
@@ -567,14 +594,6 @@ export default function Agenda() {
                           title="Abrir WhatsApp con recordatorio"
                         >
                           Recordatorio
-                        </button>
-
-                        <button
-                          className="mm-btn mm-btn--ghost"
-                          type="button"
-                          onClick={() => openEdit(it)}
-                        >
-                          Editar
                         </button>
 
                         <button
@@ -598,9 +617,9 @@ export default function Agenda() {
                     </div>
 
                     <div className="mm-itemMeta">
-                      <div><b>Motivo:</b> {it.reason}</div>
-                      <div><b>Tel:</b> {p.phone || "-"}</div>
-                      <div><b>Notas:</b> {it.notes || "-"}</div>
+                      <div><b>Motivo:</b> {it.displayReason}</div>
+                      <div><b>Tel:</b> {it.displayPhone}</div>
+                      {it.notes && <div><b>Notas:</b> {it.notes}</div>}
                     </div>
                   </div>
                 );
@@ -609,82 +628,6 @@ export default function Agenda() {
           )}
         </section>
       </div>
-
-      {/* ===== Modal editar ===== */}
-      {editing && (
-        <div
-          onClick={closeEdit}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,.35)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 14,
-            zIndex: 9999,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="mm-card"
-            style={{ width: "min(720px, 100%)" }}
-          >
-            <div className="mm-cardHead">
-              <div className="mm-cardTitle">Editar cita</div>
-              <div className="mm-chip">MicMEDIC</div>
-            </div>
-
-            <div className="mm-form">
-              <input
-                className="mm-input"
-                type="datetime-local"
-                value={editStartLocal}
-                onChange={(e) => setEditStartLocal(e.target.value)}
-              />
-
-              <input
-                className="mm-input"
-                value={editReason}
-                onChange={(e) => setEditReason(e.target.value)}
-                placeholder="Motivo"
-              />
-
-              <input
-                className="mm-input"
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-                placeholder="Notas (opcional)"
-              />
-
-              <select
-                className="mm-input"
-                value={editStatus}
-                onChange={(e) => setEditStatus(e.target.value)}
-              >
-                {STATUS.map((s) => (
-                  <option key={s.v} value={s.v}>
-                    {s.t}
-                  </option>
-                ))}
-              </select>
-
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-                <button className="mm-btn mm-btn--ghost" type="button" onClick={closeEdit}>
-                  Cancelar
-                </button>
-                <button className="mm-btn" type="button" onClick={saveEdit}>
-                  Guardar cambios
-                </button>
-              </div>
-
-              <div className="mm-hint">
-                Tip: si cambias estado a “Cancelada”, igual queda en historial.
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

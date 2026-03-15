@@ -57,7 +57,7 @@ export default function Login() {
             padding: "18px 20px",
           }}
         >
-          <div style={{ fontSize: 22, fontWeight: 900 }}>MicMEDIC</div>
+          <div style={{ fontSize: 22, fontWeight: 900 }}>Virgen de la Merced</div>
           <div style={{ fontSize: 13, opacity: 0.95 }}>
             Sistema de gestión médica
           </div>
@@ -69,7 +69,7 @@ export default function Login() {
             <label style={{ fontSize: 12, opacity: 0.8 }}>Correo</label>
             <input
               className="mm-input"
-              placeholder="ej: medico@micmedic.com"
+              placeholder="ej: medico@virgenmerced.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
@@ -124,7 +124,7 @@ export default function Login() {
       </div>
 
       <div style={{ marginTop: 12, fontSize: 12, opacity: 0.6 }}>
-        © {new Date().getFullYear()} MicMEDIC
+        © {new Date().getFullYear()} Virgen de la Merced
       </div>
     </div>
   );

@@ -186,9 +186,9 @@ export default function VisitForm({ patientId, onCreated }) {
       notes: notes.trim() || null,
 
       // Signos vitales
-      bp_systolic: bpSys !== "" ? Number(bpSys) : null,
-      bp_diastolic: bpDia !== "" ? Number(bpDia) : null,
-      heart_rate: heartRate !== "" ? Number(heartRate) : null,
+      bp_sys: bpSys !== "" ? Number(bpSys) : null,
+      bp_dia: bpDia !== "" ? Number(bpDia) : null,
+      hr: heartRate !== "" ? Number(heartRate) : null,
       spo2: spo2 !== "" ? Number(spo2) : null,
       temp_c: tempC !== "" ? Number(tempC) : null,
       weight_kg: weightKg !== "" ? Number(weightKg) : null,
@@ -245,7 +245,7 @@ export default function VisitForm({ patientId, onCreated }) {
       <form className="mm-card mm-form" onSubmit={createVisit}>
         <div className="mm-cardHead">
           <div className="mm-cardTitle">Nueva consulta</div>
-          <div className="mm-chip">{saving ? "Guardando..." : "MicMEDIC"}</div>
+          <div className="mm-chip">{saving ? "Guardando..." : "Virgen de la Merced"}</div>
         </div>
 
         <div className="mm-row">

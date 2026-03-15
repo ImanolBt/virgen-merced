@@ -290,21 +290,21 @@ export default function VisitDetail() {
 
   const clinicName = "Consultorio médico MIC MEDIC";
   const contingency = "Enfermedad general";
-  const attentionType = "Medicina Ocupacional - Medicina general";
+  const attentionType = "EMERGENCIAS, DIABETES Y OBESIDAD";
   const treatment = "Farmacológico";
 
   const doctor = {
-    fullName: "ESP. ROMO PROCEL DANIELA JACKELINE",
-    specialty: "MEDICINA OCUPACIONAL - MEDICINA GENERAL",
+    fullName: "ESP. WASHINGTON MASAPANTA",
+    specialty: "EMERGENCIAS, DIABETES Y OBESIDAD",
     cedula: "050333534-1",
     regMedico: "0503335341 - 1027 - 2023 - 2599595",
     phone: "0984340286",
-    email: "danitas0z@hotmail.com",
-    address: "Cotopaxi - Salcedo Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)",
+    email: "drwmasapanta@gmail.com",
+    address: "Cotopaxi - Latacunga Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)",
     headerLine1: "Esp. Daniela Romo",
     headerLine2: "Especialista en Medicina Ocupacional",
     headerLine3: "Msc. en Prevención de Riesgos Laborales",
-    headerLine4: "MEDICINA OCUPACIONAL - MEDICINA GENERAL",
+    headerLine4: "EMERGENCIAS, DIABETES Y OBESIDAD",
   };
 
   const daysRestComputed = useMemo(() => {
@@ -966,7 +966,7 @@ export default function VisitDetail() {
           <div className="mm-card">
             <div className="mm-cardHead" style={{ justifyContent: "space-between" }}>
               <div className="mm-cardTitle">Signos vitales</div>
-              <div className="mm-chip">{savingVitals ? "Guardando..." : "MicMEDIC"}</div>
+              <div className="mm-chip">{savingVitals ? "Guardando..." : "Virgen de la Merced"}</div>
             </div>
 
             <div style={{ padding: 14, display: "grid", gap: 12 }}>
@@ -1175,7 +1175,7 @@ export default function VisitDetail() {
                   <div>{doctor.headerLine3}</div>
                   <div style={{ fontWeight: 900 }}>{doctor.headerLine4}</div>
                   <div style={{ marginTop: 6 }}>
-                    Salcedo, {fmtDateLong(certDate)}
+                    Latacunga, {fmtDateLong(certDate)}
                   </div>
                 </div>
               </div>

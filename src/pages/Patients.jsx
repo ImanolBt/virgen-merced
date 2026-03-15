@@ -91,7 +91,7 @@ export default function Patients() {
         <section className="mm-card">
           <div className="mm-cardHead">
             <div className="mm-cardTitle">Nuevo paciente</div>
-            <div className="mm-chip">{saving ? "Guardando..." : "MicMEDIC"}</div>
+            <div className="mm-chip">{saving ? "Guardando..." : "Virgen de la Merced"}</div>
           </div>
 
           <PatientForm onCreate={addPatient} disabled={saving} />

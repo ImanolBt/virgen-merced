@@ -3,14 +3,13 @@ import { Routes, Route, NavLink, Navigate } from "react-router-dom";
 import { supabase } from "./lib/supabase";
 import VisitDetail from "./pages/VisitDetail.jsx";
 import PrescriptionDetail from "./pages/PrescriptionDetail.jsx";
-
+import AvailabilityConfig from './pages/AvailabilityConfig'
+import PublicBooking from './pages/PublicBooking'
 import Login from "./pages/Login.jsx";
 import Dashboard from "./pages/Dashboard.jsx";
 import Patients from "./pages/Patients.jsx";
 import PatientDetail from "./pages/PatientDetail.jsx";
 import Billing from "./pages/Billing.jsx";
-
-
 import Agenda from "./pages/Agenda.jsx";
 
 export default function App() {
@@ -54,7 +53,7 @@ export default function App() {
         }}
       >
         <div>
-          <div style={{ fontWeight: 900, fontSize: 18 }}>MicMEDIC</div>
+          <div style={{ fontWeight: 900, fontSize: 18 }}>Virgen de la Merced</div>
           <div style={{ fontSize: 12, opacity: 0.95 }}>
             Conectado como: <b>{session.user.email}</b>
           </div>
@@ -84,36 +83,45 @@ export default function App() {
           padding: 14,
           maxWidth: 1200,
           margin: "0 auto",
+          flexWrap: "wrap",
         }}
       >
         <NavLink className="mm-nav" to="/dashboard">
-          Dashboard
+          📊 Dashboard
         </NavLink>
         <NavLink className="mm-nav" to="/patients">
-          Pacientes
+          👥 Pacientes
         </NavLink>
         <NavLink className="mm-nav" to="/agenda">
-          Agenda
+          📅 Agenda
+        </NavLink>
+        <NavLink className="mm-nav" to="/config-horarios">
+          ⚙️ Configurar Horarios
         </NavLink>
         <NavLink className="mm-nav" to="/billing">
-  Facturas
-</NavLink>
-
+          💰 Facturas
+        </NavLink>
       </div>
 
       {/* Pages */}
       <Routes>
+        {/* Rutas principales */}
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/patients" element={<Patients />} />
         <Route path="/patients/:id" element={<PatientDetail />} />
         <Route path="/visits/:id" element={<VisitDetail />} />
         <Route path="/visits/:id/prescription" element={<PrescriptionDetail />} />
-
         <Route path="/agenda" element={<Agenda />} />
-<Route path="/billing" element={<Billing />} />
+        <Route path="/billing" element={<Billing />} />
+        
+        {/* Configuración de horarios - requiere autenticación */}
+        <Route path="/config-horarios" element={<AvailabilityConfig />} />
+        
+        {/* Formulario público - NO requiere autenticación */}
+        <Route path="/agendar" element={<PublicBooking />} />
 
-        {/* fallback */}
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </div>
