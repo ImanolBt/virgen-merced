@@ -565,7 +565,7 @@ export default function PrescriptionDetail() {
                     src="/logo-top.png" 
                     alt="Virgen de la Merced"
                     style={{
-                      height: "50px",
+                      height: "132px",
                       width: "auto",
                       objectFit: "contain",
                       display: "block"

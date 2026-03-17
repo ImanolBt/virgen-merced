@@ -5,6 +5,7 @@ export default function PublicBooking() {
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
+    email: '',
     appointmentType: '',
     date: '',
     time: ''
@@ -56,12 +57,17 @@ export default function PublicBooking() {
     e.preventDefault()
     
     if (!formData.name || !formData.phone || !formData.appointmentType || !formData.date || !formData.time) {
-      setError('Por favor complete todos los campos')
+      setError('Por favor complete todos los campos obligatorios')
       return
     }
 
     if (formData.phone.length < 10) {
       setError('Ingrese un número de teléfono válido (10 dígitos)')
+      return
+    }
+
+    if (formData.email && !formData.email.includes('@')) {
+      setError('Ingrese un email válido')
       return
     }
 
@@ -72,6 +78,7 @@ export default function PublicBooking() {
       const appointmentData = {
         patient_name: formData.name,
         patient_phone: formData.phone,
+        patient_email: formData.email || null,
         appointment_type: formData.appointmentType,
         appointment_date: formData.date,
         appointment_time: formData.time,
@@ -117,24 +124,22 @@ export default function PublicBooking() {
         }
       } catch (notifyError) {
         console.error('❌ Error enviando notificaciones:', notifyError)
-        // No detenemos el flujo si fallan las notificaciones
       }
 
-      // Guardar datos para el modal
       setSuccessData({
         name: formData.name,
         date: formData.date,
         time: formData.time,
-        type: formData.appointmentType
+        type: formData.appointmentType,
+        email: formData.email
       })
 
-      // Mostrar éxito
       setShowSuccess(true)
 
-      // Limpiar formulario
       setFormData({
         name: '',
         phone: '',
+        email: '',
         appointmentType: '',
         date: '',
         time: ''
@@ -178,7 +183,6 @@ export default function PublicBooking() {
       justifyContent: 'center',
       position: 'relative'
     }}>
-      {/* Decoración de fondo */}
       <div style={{
         position: 'fixed',
         top: 0,
@@ -219,7 +223,6 @@ export default function PublicBooking() {
         position: 'relative',
         zIndex: 1
       }}>
-        {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>
           <div style={{
             width: '80px',
@@ -250,7 +253,6 @@ export default function PublicBooking() {
           </p>
         </div>
 
-        {/* Error Message */}
         {error && (
           <div style={{
             background: '#ffebee',
@@ -341,6 +343,46 @@ export default function PublicBooking() {
                 e.target.style.boxShadow = 'none'
               }}
             />
+          </div>
+
+          {/* Email */}
+          <div style={{ marginBottom: '24px' }}>
+            <label style={{ 
+              display: 'block', 
+              fontWeight: '600', 
+              color: '#2c3e50', 
+              marginBottom: '8px',
+              fontSize: '14px'
+            }}>
+              Email <span style={{ color: '#999', fontWeight: '400', fontSize: '13px' }}>(opcional)</span>
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="ejemplo@correo.com"
+              style={{
+                width: '100%',
+                padding: '14px 18px',
+                border: '2px solid #e8eef3',
+                borderRadius: '12px',
+                fontSize: '15px',
+                fontFamily: 'inherit',
+                transition: 'all 0.2s',
+                outline: 'none'
+              }}
+              onFocus={(e) => {
+                e.target.style.borderColor = '#3ea99f'
+                e.target.style.boxShadow = '0 0 0 4px rgba(62, 169, 159, 0.1)'
+              }}
+              onBlur={(e) => {
+                e.target.style.borderColor = '#e8eef3'
+                e.target.style.boxShadow = 'none'
+              }}
+            />
+            <p style={{ fontSize: '12px', color: '#666', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ color: '#3ea99f' }}>✓</span> Recibirá confirmación y recordatorios automáticos
+            </p>
           </div>
 
           {/* Motivo */}
@@ -500,7 +542,6 @@ export default function PublicBooking() {
             </div>
           )}
 
-          {/* Botón Submit */}
           <button 
             type="submit" 
             disabled={submitting || !formData.time}
@@ -643,13 +684,26 @@ export default function PublicBooking() {
               </div>
             </div>
             
-            <p style={{
-              fontSize: '14px',
-              color: '#546e7a',
-              marginBottom: '24px'
-            }}>
-              Le confirmaremos por WhatsApp pronto.
-            </p>
+            {successData.email ? (
+              <p style={{
+                fontSize: '14px',
+                color: '#546e7a',
+                marginBottom: '24px',
+                background: '#e3f2fd',
+                padding: '12px',
+                borderRadius: '8px'
+              }}>
+                ✉️ Recibirá confirmación en <strong>{successData.email}</strong>
+              </p>
+            ) : (
+              <p style={{
+                fontSize: '14px',
+                color: '#546e7a',
+                marginBottom: '24px'
+              }}>
+                📱 Le confirmaremos por WhatsApp pronto.
+              </p>
+            )}
             
             <button 
               onClick={closeModal}

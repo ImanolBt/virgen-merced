@@ -288,22 +288,21 @@ export default function VisitDetail() {
   const [includeNotes, setIncludeNotes] = useState(false);
   const [notes, setNotes] = useState("");
 
-  const clinicName = "Consultorio médico MIC MEDIC";
+  const clinicName = "Consultorio médico Virgen de la Merced";
   const contingency = "Enfermedad general";
   const attentionType = "EMERGENCIAS, DIABETES Y OBESIDAD";
   const treatment = "Farmacológico";
 
   const doctor = {
-    fullName: "ESP. WASHINGTON MASAPANTA",
+    fullName: "DR. WASHINGTON MASAPANTA MSC.",
     specialty: "EMERGENCIAS, DIABETES Y OBESIDAD",
-    cedula: "050333534-1",
-    regMedico: "0503335341 - 1027 - 2023 - 2599595",
-    phone: "0984340286",
+    cedula: "0502391878",
+    phone: "0995361606",
     email: "drwmasapanta@gmail.com",
     address: "Cotopaxi - Latacunga Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)",
-    headerLine1: "Esp. Daniela Romo",
-    headerLine2: "Especialista en Medicina Ocupacional",
-    headerLine3: "Msc. en Prevención de Riesgos Laborales",
+    headerLine1: "Dr. Washington Masapanta MSc.",
+    headerLine2: "Seguridad y Salud Ocupacional",
+    headerLine3: "Emergencias y desastres",
     headerLine4: "EMERGENCIAS, DIABETES Y OBESIDAD",
   };
 
@@ -1166,7 +1165,7 @@ export default function VisitDetail() {
                 <img
                   src="/logo-top.png"
                   alt="Logo"
-                  style={{ height: 55, objectFit: "contain" }}
+                  style={{ height: 135, objectFit: "contain" }}
                 />
 
                 <div style={{ color: "#333", fontSize: 8.5, lineHeight: 1.15, textAlign: "right" }}>
@@ -1230,7 +1229,6 @@ Es todo en cuanto puedo certificar en honor a la verdad, autorizando al interesa
                 <div style={{ fontWeight: 900 }}>{doctor.fullName}</div>
                 <div style={{ fontWeight: 900 }}>{doctor.specialty}</div>
                 <div>CEDULA: {doctor.cedula}</div>
-                <div>REG. MEDICO: {doctor.regMedico}</div>
                 <div>CELULAR: {doctor.phone}</div>
                 <div>CORREO: {doctor.email}</div>
                 <div style={{ marginTop: 8 }}>Direccion: {doctor.address}</div>
