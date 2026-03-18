@@ -33,9 +33,7 @@ export default function Dashboard() {
   // mini agenda demo (si todavía no tienes tabla agenda)
   const agendaDemo = useMemo(
     () => [
-      { time: "08:30", who: "María Fernanda" },
-      { time: "10:00", who: "Carlos Andrés" },
-      { time: "11:30", who: "Paciente nuevo" },
+    
     ],
     []
   );
@@ -254,55 +252,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Agenda demo + accesos rápidos */}
-        <div style={{ display: "grid", gap: 14 }}>
-          <div className="mm-card">
-            <div className="mm-cardHead" style={{ justifyContent: "space-between" }}>
-              <div className="mm-cardTitle">Agenda del día</div>
-              <div className="mm-chip">Demo</div>
-            </div>
+       
 
-            <div style={{ padding: 14 }}>
-              <div style={{ display: "grid", gap: 8 }}>
-                {agendaDemo.map((a, idx) => (
-                  <div key={idx} className="mm-item" style={{ cursor: "default" }}>
-                    <div className="mm-itemTop" style={{ alignItems: "center" }}>
-                      <div className="mm-itemName">{a.time}</div>
-                      <div className="mm-chip">{a.who}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
-                <button className="mm-btn" type="button" onClick={() => nav("/agenda")}>
-                  Abrir agenda
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mm-card">
-            <div className="mm-cardHead">
-              <div className="mm-cardTitle">Accesos rápidos</div>
-            </div>
-
-            <div style={{ padding: 14, display: "grid", gap: 10 }}>
-              <button className="mm-btn" type="button" onClick={() => nav("/patients")}>
-                Ir a pacientes
-              </button>
-
-              <button className="mm-btn mm-btn--ghost" type="button" onClick={() => nav("/patients")}>
-                Registrar consulta (desde ficha)
-              </button>
-
-              <div className="mm-hint" style={{ margin: 0 }}>
-                Lo normal es crear consulta desde la ficha del paciente.
-              </div>
-            </div>
+         
           </div>
         </div>
-      </div>
-    </div>
   );
 }

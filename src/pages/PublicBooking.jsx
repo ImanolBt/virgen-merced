@@ -10,84 +10,68 @@ export default function PublicBooking() {
     date: '',
     time: ''
   })
+
   const [availableSlots, setAvailableSlots] = useState([])
   const [loading, setLoading] = useState(false)
-  const [submitting, setSubmitting] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
-  const [error, setError] = useState('')
-  const [successData, setSuccessData] = useState(null)
 
-  const appointmentTypes = [
-    'Medicina General',
-    'Obesidad',
-    'Diabetes'
-  ]
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({ ...prev, [name]: value }))
+  }
 
   useEffect(() => {
     if (formData.date) {
-      loadAvailableSlots()
+      loadAvailableSlots(formData.date)
     }
   }, [formData.date])
 
-  const loadAvailableSlots = async () => {
-    setLoading(true)
-    setError('')
+  async function loadAvailableSlots(date) {
     try {
       const { data, error } = await supabase
-        .rpc('get_available_slots_v2', { target_date: formData.date })
+        .rpc('get_available_slots_v2', { target_date: date })
 
       if (error) throw error
-
-      const available = data?.filter(slot => slot.is_available && slot.appointments_count === 0) || []
+      
+      const available = (data || [])
+        .filter(slot => slot.is_available && slot.appointments_count === 0)
+        .map(slot => slot.slot_time)
+      
       setAvailableSlots(available)
-
-      if (available.length === 0) {
-        setError('No hay horarios disponibles para esta fecha. Por favor seleccione otro día.')
-      }
     } catch (err) {
       console.error('Error loading slots:', err)
-      setError('Error al cargar horarios disponibles. Intente nuevamente.')
       setAvailableSlots([])
-    } finally {
-      setLoading(false)
     }
   }
 
-  const handleSubmit = async (e) => {
+  async function handleSubmit(e) {
     e.preventDefault()
     
-    if (!formData.name || !formData.phone || !formData.appointmentType || !formData.date || !formData.time) {
-      setError('Por favor complete todos los campos obligatorios')
+    if (!formData.name || !formData.phone || !formData.email || !formData.appointmentType || !formData.date || !formData.time) {
+      alert('Por favor complete todos los campos')
       return
     }
 
-    if (formData.phone.length < 10) {
-      setError('Ingrese un número de teléfono válido (10 dígitos)')
+    if (formData.phone.length !== 10) {
+      alert('El teléfono debe tener 10 dígitos')
       return
     }
 
-    if (formData.email && !formData.email.includes('@')) {
-      setError('Ingrese un email válido')
-      return
-    }
-
-    setSubmitting(true)
-    setError('')
+    setLoading(true)
 
     try {
       const appointmentData = {
         patient_name: formData.name,
         patient_phone: formData.phone,
-        patient_email: formData.email || null,
+        patient_email: formData.email,
         appointment_type: formData.appointmentType,
         appointment_date: formData.date,
         appointment_time: formData.time,
-        reason: formData.appointmentType,
         status: 'pending',
         created_via: 'web_form'
       }
 
-      const { data, error: appointmentError } = await supabase
+      const { data: appointmentCreated, error: appointmentError } = await supabase
         .from('appointments')
         .insert(appointmentData)
         .select()
@@ -95,47 +79,11 @@ export default function PublicBooking() {
 
       if (appointmentError) throw appointmentError
 
-      console.log('✅ Cita creada:', data)
-
-      // ===== ENVIAR NOTIFICACIONES AUTOMÁTICAS =====
-      try {
-        console.log('Enviando notificaciones...')
-        
-        const notifyResponse = await fetch(
-          'https://xdnkifgqfyotepgpapxe.supabase.co/functions/v1/notify-new-appointment',
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ 
-              appointment: data
-            })
-          }
-        )
-        
-        const notifyResult = await notifyResponse.json()
-        console.log('Resultado notificaciones:', notifyResult)
-        
-        if (notifyResponse.ok) {
-          console.log('✅ Notificaciones enviadas exitosamente')
-        } else {
-          console.error('❌ Error en notificaciones:', notifyResult)
-        }
-      } catch (notifyError) {
-        console.error('❌ Error enviando notificaciones:', notifyError)
-      }
-
-      setSuccessData({
-        name: formData.name,
-        date: formData.date,
-        time: formData.time,
-        type: formData.appointmentType,
-        email: formData.email
+      await supabase.functions.invoke('notify-new-appointment', {
+        body: { appointment: appointmentCreated }
       })
 
       setShowSuccess(true)
-
       setFormData({
         name: '',
         phone: '',
@@ -144,585 +92,444 @@ export default function PublicBooking() {
         date: '',
         time: ''
       })
-      setAvailableSlots([])
 
     } catch (err) {
-      console.error('Error creating appointment:', err)
-      setError('Error al agendar la cita. Por favor intente nuevamente o contacte al consultorio.')
+      console.error('Error:', err)
+      alert('Error al agendar la cita. Por favor intente nuevamente.')
     } finally {
-      setSubmitting(false)
+      setLoading(false)
     }
   }
 
-  const formatTime = (time) => time?.substring(0, 5) || time
-  
-  const formatDate = (dateStr) => {
-    const date = new Date(dateStr + 'T00:00:00')
-    return date.toLocaleDateString('es-EC', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
-    })
+  const getMinDate = () => {
+    const today = new Date()
+    const tomorrow = new Date(today)
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    return tomorrow.toISOString().split('T')[0]
   }
-
-  const closeModal = () => {
-    setShowSuccess(false)
-    setSuccessData(null)
-  }
-
-  const today = new Date().toISOString().split('T')[0]
 
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(135deg, #faf8f5 0%, #ffffff 100%)',
+      background: '#1a1a1a',
       padding: '20px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      position: 'relative'
+      fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
     }}>
       <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
         width: '100%',
-        height: '100%',
-        pointerEvents: 'none',
-        opacity: 0.4,
-        zIndex: 0
-      }}>
-        <div style={{
-          position: 'absolute',
-          width: '400px',
-          height: '400px',
-          background: 'radial-gradient(circle, #3ea99f 0%, transparent 70%)',
-          top: '-100px',
-          right: '-100px',
-          borderRadius: '50%'
-        }}></div>
-        <div style={{
-          position: 'absolute',
-          width: '300px',
-          height: '300px',
-          background: 'radial-gradient(circle, #e8927c 0%, transparent 70%)',
-          bottom: '-50px',
-          left: '-50px',
-          borderRadius: '50%'
-        }}></div>
-      </div>
-
-      <div style={{
-        background: 'white',
-        borderRadius: '24px',
-        padding: '48px',
         maxWidth: '600px',
-        width: '100%',
-        boxShadow: '0 12px 48px rgba(30, 77, 123, 0.12)',
-        position: 'relative',
-        zIndex: 1
+        background: 'white',
+        borderRadius: '20px',
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        overflow: 'hidden'
       }}>
-        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <div style={{
-            width: '80px',
-            height: '80px',
-            margin: '0 auto 20px',
-            background: 'linear-gradient(135deg, #1e4d7b 0%, #3ea99f 100%)',
-            borderRadius: '20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'white',
-            fontSize: '32px',
+        
+        {/* LOGO - SIN PADDING */}
+        <div style={{
+          background: '#000',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <img 
+            src="/logo-top.png" 
+            alt="Dr. Washington Masapanta" 
+            style={{
+              width: '100%',
+              maxWidth: '100%',
+              height: 'auto',
+              display: 'block'
+            }}
+          />
+        </div>
+
+        {/* TÍTULO */}
+        <div style={{
+          padding: '30px 30px 25px',
+          textAlign: 'center',
+          background: 'white',
+          borderBottom: '2px solid #f0f0f0'
+        }}>
+          <h1 style={{
+            margin: '0 0 8px',
+            fontSize: '28px',
             fontWeight: '700',
-            fontFamily: 'Georgia, serif'
+            color: '#2c3e50',
+            letterSpacing: '-0.5px'
           }}>
-            VM
-          </div>
-          <h1 style={{ 
-            fontSize: '32px', 
-            color: '#1e4d7b', 
-            marginBottom: '8px',
-            fontWeight: '600'
-          }}>
-            Agendar Cita
+            Agendar Cita Médica
           </h1>
-          <p style={{ color: '#546e7a', fontSize: '16px' }}>
-            Consultorio Virgen Merced
+          <p style={{
+            margin: 0,
+            fontSize: '15px',
+            color: '#7f8c8d'
+          }}>
+            Complete el formulario y le confirmaremos por WhatsApp
           </p>
         </div>
 
-        {error && (
-          <div style={{
-            background: '#ffebee',
-            color: '#c62828',
-            padding: '12px 18px',
-            borderRadius: '10px',
-            marginBottom: '24px',
-            borderLeft: '4px solid #e57373',
-            fontSize: '14px'
-          }}>
-            ⚠️ {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
+        {/* FORMULARIO */}
+        <form onSubmit={handleSubmit} style={{
+          padding: '35px 30px 45px',
+          background: 'white'
+        }}>
+          
           {/* Nombre */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              fontWeight: '600', 
-              color: '#2c3e50', 
+          <div style={{ marginBottom: '22px' }}>
+            <label style={{
+              display: 'block',
               marginBottom: '8px',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#2c3e50'
             }}>
-              Nombre Completo <span style={{ color: '#e8927c' }}>*</span>
+              Nombre Completo <span style={{ color: '#e74c3c' }}>*</span>
             </label>
             <input
               type="text"
+              name="name"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Ej: Juan Carlos Pérez"
+              onChange={handleChange}
               required
+              placeholder="Ej: Juan Carlos Pérez"
               style={{
                 width: '100%',
-                padding: '14px 18px',
-                border: '2px solid #e8eef3',
-                borderRadius: '12px',
+                padding: '14px 16px',
                 fontSize: '15px',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s',
-                outline: 'none'
+                border: '2px solid #e8e8e8',
+                borderRadius: '10px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                background: '#fafafa',
+                transition: 'all 0.2s'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#3ea99f'
-                e.target.style.boxShadow = '0 0 0 4px rgba(62, 169, 159, 0.1)'
+                e.target.style.borderColor = '#D4AF37'
+                e.target.style.background = 'white'
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#e8eef3'
-                e.target.style.boxShadow = 'none'
+                e.target.style.borderColor = '#e8e8e8'
+                e.target.style.background = '#fafafa'
               }}
             />
           </div>
 
           {/* Teléfono */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              fontWeight: '600', 
-              color: '#2c3e50', 
+          <div style={{ marginBottom: '22px' }}>
+            <label style={{
+              display: 'block',
               marginBottom: '8px',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#2c3e50'
             }}>
-              Teléfono / WhatsApp <span style={{ color: '#e8927c' }}>*</span>
+              Teléfono / WhatsApp <span style={{ color: '#e74c3c' }}>*</span>
             </label>
             <input
               type="tel"
+              name="phone"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, '') })}
-              placeholder="Ej: 0987654321"
-              maxLength="10"
+              onChange={handleChange}
               required
+              placeholder="0987654321"
+              maxLength="10"
               style={{
                 width: '100%',
-                padding: '14px 18px',
-                border: '2px solid #e8eef3',
-                borderRadius: '12px',
+                padding: '14px 16px',
                 fontSize: '15px',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s',
-                outline: 'none'
+                border: '2px solid #e8e8e8',
+                borderRadius: '10px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                background: '#fafafa',
+                transition: 'all 0.2s'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#3ea99f'
-                e.target.style.boxShadow = '0 0 0 4px rgba(62, 169, 159, 0.1)'
+                e.target.style.borderColor = '#D4AF37'
+                e.target.style.background = 'white'
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#e8eef3'
-                e.target.style.boxShadow = 'none'
+                e.target.style.borderColor = '#e8e8e8'
+                e.target.style.background = '#fafafa'
               }}
             />
           </div>
 
           {/* Email */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              fontWeight: '600', 
-              color: '#2c3e50', 
+          <div style={{ marginBottom: '22px' }}>
+            <label style={{
+              display: 'block',
               marginBottom: '8px',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#2c3e50'
             }}>
-              Email <span style={{ color: '#999', fontWeight: '400', fontSize: '13px' }}>(opcional)</span>
+              Correo Electrónico <span style={{ color: '#e74c3c' }}>*</span>
             </label>
             <input
               type="email"
+              name="email"
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={handleChange}
+              required
               placeholder="ejemplo@correo.com"
               style={{
                 width: '100%',
-                padding: '14px 18px',
-                border: '2px solid #e8eef3',
-                borderRadius: '12px',
+                padding: '14px 16px',
                 fontSize: '15px',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s',
-                outline: 'none'
+                border: '2px solid #e8e8e8',
+                borderRadius: '10px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                background: '#fafafa',
+                transition: 'all 0.2s'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#3ea99f'
-                e.target.style.boxShadow = '0 0 0 4px rgba(62, 169, 159, 0.1)'
+                e.target.style.borderColor = '#D4AF37'
+                e.target.style.background = 'white'
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#e8eef3'
-                e.target.style.boxShadow = 'none'
+                e.target.style.borderColor = '#e8e8e8'
+                e.target.style.background = '#fafafa'
               }}
             />
-            <p style={{ fontSize: '12px', color: '#666', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ color: '#3ea99f' }}>✓</span> Recibirá confirmación y recordatorios automáticos
-            </p>
           </div>
 
           {/* Motivo */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              fontWeight: '600', 
-              color: '#2c3e50', 
+          <div style={{ marginBottom: '22px' }}>
+            <label style={{
+              display: 'block',
               marginBottom: '8px',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#2c3e50'
             }}>
-              Motivo de Consulta <span style={{ color: '#e8927c' }}>*</span>
+              Motivo de Consulta <span style={{ color: '#e74c3c' }}>*</span>
             </label>
             <select
+              name="appointmentType"
               value={formData.appointmentType}
-              onChange={(e) => setFormData({ ...formData, appointmentType: e.target.value })}
+              onChange={handleChange}
               required
               style={{
                 width: '100%',
-                padding: '14px 18px',
-                border: '2px solid #e8eef3',
-                borderRadius: '12px',
+                padding: '14px 16px',
                 fontSize: '15px',
-                fontFamily: 'inherit',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
+                border: '2px solid #e8e8e8',
+                borderRadius: '10px',
                 outline: 'none',
-                backgroundColor: 'white'
+                boxSizing: 'border-box',
+                background: '#fafafa',
+                cursor: 'pointer',
+                transition: 'all 0.2s'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#3ea99f'
-                e.target.style.boxShadow = '0 0 0 4px rgba(62, 169, 159, 0.1)'
+                e.target.style.borderColor = '#D4AF37'
+                e.target.style.background = 'white'
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#e8eef3'
-                e.target.style.boxShadow = 'none'
+                e.target.style.borderColor = '#e8e8e8'
+                e.target.style.background = '#fafafa'
               }}
             >
               <option value="">Seleccione una opción</option>
-              {appointmentTypes.map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
+              <option value="Medicina General">Medicina General</option>
+              <option value="Obesidad">Obesidad</option>
+              <option value="Diabetes">Diabetes</option>
+              <option value="Emergencia">Emergencia</option>
             </select>
           </div>
 
           {/* Fecha */}
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ 
-              display: 'block', 
-              fontWeight: '600', 
-              color: '#2c3e50', 
+          <div style={{ marginBottom: '22px' }}>
+            <label style={{
+              display: 'block',
               marginBottom: '8px',
-              fontSize: '14px'
+              fontSize: '14px',
+              fontWeight: '600',
+              color: '#2c3e50'
             }}>
-              Fecha de la Cita <span style={{ color: '#e8927c' }}>*</span>
+              Fecha de la Cita <span style={{ color: '#e74c3c' }}>*</span>
             </label>
             <input
               type="date"
+              name="date"
               value={formData.date}
-              onChange={(e) => setFormData({ ...formData, date: e.target.value, time: '' })}
-              min={today}
+              onChange={handleChange}
+              min={getMinDate()}
               required
               style={{
                 width: '100%',
-                padding: '14px 18px',
-                border: '2px solid #e8eef3',
-                borderRadius: '12px',
+                padding: '14px 16px',
                 fontSize: '15px',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s',
-                outline: 'none'
+                border: '2px solid #e8e8e8',
+                borderRadius: '10px',
+                outline: 'none',
+                boxSizing: 'border-box',
+                background: '#fafafa',
+                transition: 'all 0.2s'
               }}
               onFocus={(e) => {
-                e.target.style.borderColor = '#3ea99f'
-                e.target.style.boxShadow = '0 0 0 4px rgba(62, 169, 159, 0.1)'
+                e.target.style.borderColor = '#D4AF37'
+                e.target.style.background = 'white'
               }}
               onBlur={(e) => {
-                e.target.style.borderColor = '#e8eef3'
-                e.target.style.boxShadow = 'none'
+                e.target.style.borderColor = '#e8e8e8'
+                e.target.style.background = '#fafafa'
               }}
             />
           </div>
 
-          {/* Horarios */}
+          {/* Horario */}
           {formData.date && (
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ 
-                display: 'block', 
-                fontWeight: '600', 
-                color: '#2c3e50', 
+            <div style={{ marginBottom: '28px' }}>
+              <label style={{
+                display: 'block',
                 marginBottom: '12px',
-                fontSize: '14px'
+                fontSize: '14px',
+                fontWeight: '600',
+                color: '#2c3e50'
               }}>
-                Horario Disponible <span style={{ color: '#e8927c' }}>*</span>
+                Horario Disponible <span style={{ color: '#e74c3c' }}>*</span>
               </label>
               
-              {loading ? (
+              {availableSlots.length === 0 ? (
                 <div style={{
+                  padding: '20px',
+                  background: '#fff9e6',
+                  borderRadius: '10px',
                   textAlign: 'center',
-                  padding: '24px',
-                  color: '#546e7a',
-                  background: '#f5f5f5',
-                  borderRadius: '10px'
+                  color: '#8B7355',
+                  fontSize: '14px',
+                  border: '2px solid #f0e5d8'
                 }}>
-                  Cargando horarios...
-                </div>
-              ) : availableSlots.length > 0 ? (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
-                  gap: '10px',
-                  marginTop: '12px'
-                }}>
-                  {availableSlots.map((slot) => (
-                    <div
-                      key={slot.slot_time}
-                      onClick={() => setFormData({ ...formData, time: slot.slot_time })}
-                      style={{
-                        padding: '14px',
-                        border: formData.time === slot.slot_time ? '2px solid #1e4d7b' : '2px solid #e8eef3',
-                        borderRadius: '10px',
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        fontWeight: '500',
-                        transition: 'all 0.2s',
-                        background: formData.time === slot.slot_time ? 'linear-gradient(135deg, #1e4d7b 0%, #3ea99f 100%)' : 'white',
-                        color: formData.time === slot.slot_time ? 'white' : '#2c3e50'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (formData.time !== slot.slot_time) {
-                          e.target.style.borderColor = '#3ea99f'
-                          e.target.style.transform = 'translateY(-2px)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (formData.time !== slot.slot_time) {
-                          e.target.style.borderColor = '#e8eef3'
-                          e.target.style.transform = 'translateY(0)'
-                        }
-                      }}
-                    >
-                      {formatTime(slot.slot_time)}
-                    </div>
-                  ))}
+                  No hay horarios disponibles
                 </div>
               ) : (
                 <div style={{
-                  textAlign: 'center',
-                  padding: '24px',
-                  color: '#546e7a',
-                  background: '#f5f5f5',
-                  borderRadius: '10px'
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))',
+                  gap: '10px'
                 }}>
-                  No hay horarios disponibles para esta fecha
+                  {availableSlots.map(slot => (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, time: slot }))}
+                      style={{
+                        padding: '13px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        border: formData.time === slot ? '2px solid #D4AF37' : '2px solid #e8e8e8',
+                        background: formData.time === slot ? '#D4AF37' : '#fafafa',
+                        color: formData.time === slot ? '#fff' : '#2c3e50',
+                        borderRadius: '10px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (formData.time !== slot) {
+                          e.target.style.borderColor = '#D4AF37'
+                          e.target.style.background = '#fff9f5'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (formData.time !== slot) {
+                          e.target.style.borderColor = '#e8e8e8'
+                          e.target.style.background = '#fafafa'
+                        }
+                      }}
+                    >
+                      {slot.substring(0, 5)}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
           )}
 
-          <button 
-            type="submit" 
-            disabled={submitting || !formData.time}
-            style={{
-              width: '100%',
-              padding: '18px',
-              background: submitting || !formData.time ? '#cccccc' : 'linear-gradient(135deg, #1e4d7b 0%, #3ea99f 100%)',
-              color: 'white',
-              border: 'none',
-              borderRadius: '12px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: submitting || !formData.time ? 'not-allowed' : 'pointer',
-              marginTop: '12px',
-              transition: 'all 0.3s',
-              boxShadow: submitting || !formData.time ? 'none' : '0 8px 24px rgba(30, 77, 123, 0.2)'
-            }}
-            onMouseEnter={(e) => {
-              if (!submitting && formData.time) {
-                e.target.style.transform = 'translateY(-2px)'
-                e.target.style.boxShadow = '0 12px 32px rgba(30, 77, 123, 0.3)'
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!submitting && formData.time) {
-                e.target.style.transform = 'translateY(0)'
-                e.target.style.boxShadow = '0 8px 24px rgba(30, 77, 123, 0.2)'
-              }
-            }}
-          >
-            {submitting ? 'Agendando...' : '✓ Confirmar Cita'}
-          </button>
+          {/* Botón */}
+          {/* Botón */}
+<button
+  type="submit"
+  disabled={loading}
+  style={{
+    width: '100%',
+    padding: '17px',
+    fontSize: '16px',
+    fontWeight: '700',
+    background: loading ? '#bdc3c7' : 'linear-gradient(135deg, #5DADE2 0%, #48C9B0 100%)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '12px',
+    cursor: loading ? 'not-allowed' : 'pointer',
+    boxShadow: '0 4px 15px rgba(93, 173, 226, 0.3)',
+    transition: 'all 0.3s',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
+  }}
+  onMouseEnter={(e) => {
+    if (!loading) {
+      e.target.style.transform = 'translateY(-2px)'
+      e.target.style.boxShadow = '0 6px 20px rgba(93, 173, 226, 0.4)'
+    }
+  }}
+  onMouseLeave={(e) => {
+    e.target.style.transform = 'translateY(0)'
+    e.target.style.boxShadow = '0 4px 15px rgba(93, 173, 226, 0.3)'
+  }}
+>
+  {loading ? 'Agendando...' : 'Confirmar Cita'}
+</button>
         </form>
       </div>
 
-      {/* Modal de Éxito */}
-      {showSuccess && successData && (
-        <div 
-          onClick={closeModal}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            background: 'rgba(0, 0, 0, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1000,
-            padding: '20px'
-          }}
+      {/* MODAL SUCCESS */}
+      {showSuccess && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(0,0,0,0.85)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9999,
+          padding: '20px',
+          backdropFilter: 'blur(5px)'
+        }}
+        onClick={() => setShowSuccess(false)}
         >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: 'white',
-              borderRadius: '24px',
-              padding: '48px',
-              maxWidth: '480px',
-              width: '100%',
-              textAlign: 'center',
-              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.3)'
-            }}
+          <div style={{
+            background: 'white',
+            borderRadius: '20px',
+            padding: '45px 35px',
+            maxWidth: '400px',
+            textAlign: 'center',
+            boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
+          }}
+          onClick={(e) => e.stopPropagation()}
           >
-            <div style={{
-              width: '80px',
-              height: '80px',
-              margin: '0 auto 24px',
-              background: 'linear-gradient(135deg, #4caf50, #66bb6a)',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '40px',
-              color: 'white'
-            }}>
-              ✓
-            </div>
-            
-            <h2 style={{
-              fontSize: '28px',
-              color: '#1e4d7b',
-              marginBottom: '16px',
-              fontWeight: '600'
-            }}>
+            <div style={{ fontSize: '64px', marginBottom: '20px' }}>✅</div>
+            <h2 style={{ margin: '0 0 12px', color: '#27ae60', fontSize: '24px', fontWeight: '700' }}>
               ¡Cita Agendada!
             </h2>
-            
-            <p style={{
-              color: '#546e7a',
-              marginBottom: '24px',
-              fontSize: '16px'
-            }}>
-              Su cita ha sido registrada exitosamente.
+            <p style={{ margin: '0 0 28px', color: '#7f8c8d', lineHeight: '1.6' }}>
+              Recibirá confirmación por WhatsApp y email en breve.
             </p>
-            
-            <div style={{
-              background: '#e8f5e9',
-              padding: '24px',
-              borderRadius: '16px',
-              margin: '24px 0',
-              textAlign: 'left',
-              border: '2px solid #4caf50'
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '10px 0'
-              }}>
-                <span style={{ fontWeight: '600', color: '#546e7a' }}>Paciente:</span>
-                <span style={{ color: '#1e4d7b', fontWeight: '600' }}>{successData.name}</span>
-              </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '10px 0',
-                borderTop: '1px solid rgba(76, 175, 80, 0.2)'
-              }}>
-                <span style={{ fontWeight: '600', color: '#546e7a' }}>Fecha:</span>
-                <span style={{ color: '#1e4d7b', fontWeight: '600' }}>{formatDate(successData.date)}</span>
-              </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '10px 0',
-                borderTop: '1px solid rgba(76, 175, 80, 0.2)'
-              }}>
-                <span style={{ fontWeight: '600', color: '#546e7a' }}>Hora:</span>
-                <span style={{ color: '#1e4d7b', fontWeight: '600' }}>{formatTime(successData.time)}</span>
-              </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                padding: '10px 0',
-                borderTop: '1px solid rgba(76, 175, 80, 0.2)'
-              }}>
-                <span style={{ fontWeight: '600', color: '#546e7a' }}>Motivo:</span>
-                <span style={{ color: '#1e4d7b', fontWeight: '600' }}>{successData.type}</span>
-              </div>
-            </div>
-            
-            {successData.email ? (
-              <p style={{
-                fontSize: '14px',
-                color: '#546e7a',
-                marginBottom: '24px',
-                background: '#e3f2fd',
-                padding: '12px',
-                borderRadius: '8px'
-              }}>
-                ✉️ Recibirá confirmación en <strong>{successData.email}</strong>
-              </p>
-            ) : (
-              <p style={{
-                fontSize: '14px',
-                color: '#546e7a',
-                marginBottom: '24px'
-              }}>
-                📱 Le confirmaremos por WhatsApp pronto.
-              </p>
-            )}
-            
-            <button 
-              onClick={closeModal}
+            <button
+              onClick={() => setShowSuccess(false)}
               style={{
-                padding: '14px 32px',
-                background: '#3ea99f',
+                padding: '13px 35px',
+                background: '#D4AF37',
                 color: 'white',
                 border: 'none',
-                borderRadius: '12px',
-                fontWeight: '600',
-                cursor: 'pointer',
+                borderRadius: '10px',
                 fontSize: '15px',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#1e4d7b'
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#3ea99f'
+                fontWeight: '600',
+                cursor: 'pointer'
               }}
             >
               Cerrar
