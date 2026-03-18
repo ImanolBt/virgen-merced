@@ -13,7 +13,6 @@ function calcAgeFromBirthdate(birthdate) {
   const m = today.getMonth() - b.getMonth();
   if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
 
-  // 👇 Para bebés, devolvemos 0 (no rompe nada)
   return age >= 0 ? age : null;
 }
 
@@ -37,7 +36,6 @@ function ageLabelFromBirthdate(birthdate) {
   return `${years} año(s)`;
 }
 
-
 function calcBMI(weightKg, heightCm) {
   const w = Number(weightKg);
   const hcm = Number(heightCm);
@@ -59,11 +57,12 @@ export default function VisitForm({ patientId, onCreated }) {
 
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
+  const [diags, setDiags] = useState([]);
 
-  // ---- MÚLTIPLES DIAGNÓSTICOS ----
-  const [diags, setDiags] = useState([]); // [{code, name}, ...]
+  // 📸 NUEVO: Imagen de la consulta
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
-  // ---- cargar paciente para edad/sexo ----
   const [patient, setPatient] = useState(null);
   const [age, setAge] = useState(null);
 
@@ -93,7 +92,6 @@ export default function VisitForm({ patientId, onCreated }) {
     };
   }, [patientId]);
 
-  // ---- signos vitales ----
   const [bpSys, setBpSys] = useState("");
   const [bpDia, setBpDia] = useState("");
   const [heartRate, setHeartRate] = useState("");
@@ -102,32 +100,48 @@ export default function VisitForm({ patientId, onCreated }) {
   const [weightKg, setWeightKg] = useState("");
   const [heightCm, setHeightCm] = useState("");
 
-  // <10: OMS manual
   const [growthPercentile, setGrowthPercentile] = useState("");
   const [growthNote, setGrowthNote] = useState("");
 
-  // Modal OMS
   const [omsOpen, setOmsOpen] = useState(false);
-  const [omsSex, setOmsSex] = useState("M"); // M/F
+  const [omsSex, setOmsSex] = useState("M");
   const [omsAgeMonths, setOmsAgeMonths] = useState("");
-  const [omsIndicator, setOmsIndicator] = useState("bmi_age"); // bmi_age, weight_age, height_age
+  const [omsIndicator, setOmsIndicator] = useState("bmi_age");
 
   const liveBMI = useMemo(() => calcBMI(weightKg, heightCm), [weightKg, heightCm]);
 
-  // Validación actualizada para múltiples diagnósticos
   const canSave = useMemo(() => {
     return patientId && reason.trim().length >= 3 && diags.length > 0;
   }, [patientId, reason, diags]);
 
+  // 📸 HANDLER DE IMAGEN
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        alert('Por favor seleccione una imagen');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        alert('La imagen no debe superar 10MB');
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   function openOms() {
-    // sugerimos sexo según paciente si existe
     const sx = patient?.sex === "F" ? "F" : "M";
     setOmsSex(sx);
     setOmsOpen(true);
   }
 
   function applyOms() {
-    // Guardamos una nota clara con lo que se registró
     const indLabel =
       omsIndicator === "bmi_age"
         ? "IMC/Edad"
@@ -159,6 +173,8 @@ export default function VisitForm({ patientId, onCreated }) {
     setReason("");
     setNotes("");
     setDiags([]);
+    setImageFile(null);
+    setImagePreview(null);
 
     setBpSys("");
     setBpDia("");
@@ -178,66 +194,91 @@ export default function VisitForm({ patientId, onCreated }) {
 
     setSaving(true);
 
-    // 1) Crear la visita principal (sin diagnósticos aquí)
-    const visitPayload = {
-      patient_id: patientId,
-      visit_date: visitDate ? new Date(visitDate).toISOString() : new Date().toISOString(),
-      reason: reason.trim(),
-      notes: notes.trim() || null,
-
-      // Signos vitales
-      bp_sys: bpSys !== "" ? Number(bpSys) : null,
-      bp_dia: bpDia !== "" ? Number(bpDia) : null,
-      hr: heartRate !== "" ? Number(heartRate) : null,
-      spo2: spo2 !== "" ? Number(spo2) : null,
-      temp_c: tempC !== "" ? Number(tempC) : null,
-      weight_kg: weightKg !== "" ? Number(weightKg) : null,
-      height_cm: heightCm !== "" ? Number(heightCm) : null,
-
-      // Cálculos condicionales
-      bmi: age !== null && age >= 10 ? (liveBMI ?? null) : null,
-      growth_percentile: growthPercentile !== "" ? Number(growthPercentile) : null,
-      growth_note: (growthNote || "").trim() ? growthNote.trim() : null,
-    };
-
-    // Insertar visita principal
-    const { data: visitData, error: visitError } = await supabase
-      .from("medical_visits")
-      .insert(visitPayload)
-      .select("id")
-      .single();
-
-    if (visitError) {
-      console.error(visitError);
-      alert(visitError.message || "Error guardando consulta");
-      setSaving(false);
-      return;
-    }
-
-    const visitId = visitData.id;
-
-    // 2) Guardar diagnósticos múltiples en tabla separada
-    if (diags.length > 0) {
-      const diagPayload = diags.map((d) => ({
-        visit_id: visitId,
-        cie10_code: d.code,
-        cie10_name: d.name,
-      }));
-
-      const { error: diagError } = await supabase
-        .from("medical_visit_diagnoses")
-        .insert(diagPayload);
-
-      if (diagError) {
-        console.error(diagError);
-        alert("La consulta se creó, pero falló guardar algunos diagnósticos. Verifica la tabla medical_visit_diagnoses.");
-        // Continuamos aunque haya error en diagnósticos
+    try {
+      // 📸 1) Subir imagen si existe
+      let imageUrl = null;
+      if (imageFile) {
+        const fileExt = imageFile.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        
+        const { error: uploadError } = await supabase.storage
+          .from('consultation-images')
+          .upload(fileName, imageFile);
+        
+        if (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          alert('Error al subir imagen, pero continuaremos guardando la consulta');
+        } else {
+          const { data: { publicUrl } } = supabase.storage
+            .from('consultation-images')
+            .getPublicUrl(fileName);
+          imageUrl = publicUrl;
+        }
       }
-    }
 
-    setSaving(false);
-    resetForm();
-    onCreated?.();
+      // 2) Crear visita con imagen
+      const visitPayload = {
+        patient_id: patientId,
+        visit_date: visitDate ? new Date(visitDate).toISOString() : new Date().toISOString(),
+        reason: reason.trim(),
+        notes: notes.trim() || null,
+        consultation_image_url: imageUrl,
+
+        bp_sys: bpSys !== "" ? Number(bpSys) : null,
+        bp_dia: bpDia !== "" ? Number(bpDia) : null,
+        hr: heartRate !== "" ? Number(heartRate) : null,
+        spo2: spo2 !== "" ? Number(spo2) : null,
+        temp_c: tempC !== "" ? Number(tempC) : null,
+        weight_kg: weightKg !== "" ? Number(weightKg) : null,
+        height_cm: heightCm !== "" ? Number(heightCm) : null,
+
+        bmi: age !== null && age >= 10 ? (liveBMI ?? null) : null,
+        growth_percentile: growthPercentile !== "" ? Number(growthPercentile) : null,
+        growth_note: (growthNote || "").trim() ? growthNote.trim() : null,
+      };
+
+      const { data: visitData, error: visitError } = await supabase
+        .from("medical_visits")
+        .insert(visitPayload)
+        .select("id")
+        .single();
+
+      if (visitError) {
+        console.error(visitError);
+        alert(visitError.message || "Error guardando consulta");
+        setSaving(false);
+        return;
+      }
+
+      const visitId = visitData.id;
+
+      // 3) Guardar diagnósticos
+      if (diags.length > 0) {
+        const diagPayload = diags.map((d) => ({
+          visit_id: visitId,
+          cie10_code: d.code,
+          cie10_name: d.name,
+        }));
+
+        const { error: diagError } = await supabase
+          .from("medical_visit_diagnoses")
+          .insert(diagPayload);
+
+        if (diagError) {
+          console.error(diagError);
+          alert("La consulta se creó, pero falló guardar algunos diagnósticos.");
+        }
+      }
+
+      setSaving(false);
+      resetForm();
+      onCreated?.();
+      
+    } catch (err) {
+      console.error(err);
+      alert('Error: ' + err.message);
+      setSaving(false);
+    }
   }
 
   return (
@@ -267,7 +308,6 @@ export default function VisitForm({ patientId, onCreated }) {
           />
         </div>
 
-        {/* DIAGNÓSTICOS MÚLTIPLES - REEMPLAZA EL PICKER SIMPLE */}
         <div style={{ marginBottom: 16 }}>
           <Cie10MultiPicker selected={diags} onChange={setDiags} disabled={saving} />
           <div className="mm-hint" style={{ marginTop: 6 }}>
@@ -289,7 +329,82 @@ export default function VisitForm({ patientId, onCreated }) {
           disabled={saving}
         />
 
-        {/* SIGNOS VITALES */}
+        {/* 📸 CAMPO DE IMAGEN */}
+        <div style={{ marginTop: '16px' }}>
+          <label style={{ 
+            display: 'block', 
+            fontWeight: 600, 
+            marginBottom: '8px',
+            color: '#2c3e50',
+            fontSize: '14px'
+          }}>
+            📸 Imagen de la consulta <span style={{ fontWeight: 400, color: '#999', fontSize: '12px' }}>(resultados, exámenes, etc. - opcional)</span>
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleImageChange}
+            disabled={saving}
+            style={{
+              width: '100%',
+              padding: '12px',
+              border: '2px dashed #ccc',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              backgroundColor: saving ? '#f5f5f5' : 'white',
+              fontSize: '14px'
+            }}
+          />
+          <p style={{ fontSize: '11px', color: '#999', marginTop: '6px' }}>
+            Ej: radiografías, laboratorios, electrocardiogramas. Máx: 10MB
+          </p>
+          
+          {imagePreview && (
+            <div style={{ 
+              marginTop: '12px', 
+              textAlign: 'center',
+              padding: '12px',
+              background: '#f8f9fa',
+              borderRadius: '8px'
+            }}>
+              <img 
+                src={imagePreview} 
+                alt="Preview" 
+                style={{
+                  maxWidth: '300px',
+                  maxHeight: '200px',
+                  borderRadius: '6px',
+                  objectFit: 'contain',
+                  border: '2px solid #3ea99f'
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setImageFile(null);
+                  setImagePreview(null);
+                }}
+                disabled={saving}
+                style={{
+                  display: 'block',
+                  margin: '10px auto 0',
+                  padding: '6px 14px',
+                  background: '#ff5252',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  fontSize: '13px',
+                  fontWeight: 500
+                }}
+              >
+                ✕ Eliminar
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* SIGNOS VITALES (sin cambios) */}
         <div className="mm-card" style={{ padding: 14, marginTop: 10 }}>
           <div className="mm-cardTitle" style={{ marginBottom: 10 }}>
             Signos vitales
@@ -461,7 +576,7 @@ export default function VisitForm({ patientId, onCreated }) {
         </div>
       </form>
 
-      {/* MODAL OMS (MANTENIDO IGUAL) */}
+      {/* MODAL OMS (sin cambios) */}
       {omsOpen ? (
         <div
           role="dialog"
@@ -492,7 +607,7 @@ export default function VisitForm({ patientId, onCreated }) {
               <div>
                 <div className="mm-cardTitle">Curvas OMS (registro manual)</div>
                 <div style={{ fontSize: 12, opacity: 0.8 }}>
-                  Selecciona datos y guarda el percentil. (Automatización completa la hacemos después)
+                  Selecciona datos y guarda el percentil.
                 </div>
               </div>
 

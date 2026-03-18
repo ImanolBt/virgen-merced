@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
 const TELEGRAM_BOT_TOKEN = Deno.env.get('TELEGRAM_BOT_TOKEN')
 const TELEGRAM_CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID')
-const MAILERSEND_API_KEY = Deno.env.get('MAILERSEND_API_KEY')
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const DOCTOR_EMAIL = Deno.env.get('DOCTOR_EMAIL') || 'drwmasapanta@gmail.com'
 
 const corsHeaders = {
@@ -69,8 +69,8 @@ _Cita registrada desde el formulario web_`
       console.log('✅ Telegram sent')
     }
 
-    // ===== 2. EMAIL AL DOCTOR (MailerSend) =====
-    if (MAILERSEND_API_KEY && DOCTOR_EMAIL) {
+    // ===== 2. EMAIL AL DOCTOR (RESEND) =====
+    if (RESEND_API_KEY && DOCTOR_EMAIL) {
       const doctorEmailHtml = `
 <!DOCTYPE html>
 <html>
@@ -138,30 +138,25 @@ _Cita registrada desde el formulario web_`
 </body>
 </html>`
 
-      await fetch('https://api.mailersend.com/v1/email', {
+      await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${MAILERSEND_API_KEY}`,
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: {
-            email: 'ima2001bola@gmail.com',
-            name: 'Virgen Merced'
-          },
-          to: [{
-            email: DOCTOR_EMAIL
-          }],
+          from: 'Virgen Merced <onboarding@resend.dev>',
+          to: [DOCTOR_EMAIL],
           subject: `🔴 Nueva cita: ${appointment.patient_name || 'Paciente'} - ${dateStr} ${time}`,
           html: doctorEmailHtml
         }),
       })
       
-      console.log('✅ Email sent to doctor via MailerSend')
+      console.log('✅ Email sent to doctor via Resend')
     }
 
-    // ===== 3. EMAIL AL PACIENTE (MailerSend) =====
-    if (MAILERSEND_API_KEY && appointment.patient_email) {
+    // ===== 3. EMAIL AL PACIENTE (RESEND) =====
+    if (RESEND_API_KEY && appointment.patient_email) {
       const patientEmailHtml = `
 <!DOCTYPE html>
 <html>
@@ -248,26 +243,21 @@ _Cita registrada desde el formulario web_`
 </body>
 </html>`
 
-      await fetch('https://api.mailersend.com/v1/email', {
+      await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${MAILERSEND_API_KEY}`,
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          from: {
-            email: 'ima2001bola@gmail.com',
-            name: 'Virgen Merced'
-          },
-          to: [{
-            email: appointment.patient_email
-          }],
+          from: 'Virgen Merced <onboarding@resend.dev>',
+          to: [appointment.patient_email],
           subject: `✅ Cita confirmada - ${dateStr} ${time}`,
           html: patientEmailHtml
         }),
       })
       
-      console.log('✅ Email sent to patient via MailerSend')
+      console.log('✅ Email sent to patient via Resend')
     }
 
     return new Response(
@@ -275,8 +265,8 @@ _Cita registrada desde el formulario web_`
         success: true, 
         message: 'Notificaciones enviadas',
         telegram: !!TELEGRAM_BOT_TOKEN,
-        email_doctor: !!MAILERSEND_API_KEY,
-        email_patient: !!(MAILERSEND_API_KEY && appointment.patient_email)
+        email_doctor: !!RESEND_API_KEY,
+        email_patient: !!(RESEND_API_KEY && appointment.patient_email)
       }),
       { 
         status: 200,
