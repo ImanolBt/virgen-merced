@@ -60,7 +60,7 @@ _Cita registrada desde el formulario web_`
           parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [[
-              { text: '📊 Ver Dashboard', url: 'https://virgenmerced.vercel.app/agenda' }
+              { text: '📊 Ver Dashboard', url: 'https://virgen-merced.vercel.app/agenda' }
             ]]
           }
         })
