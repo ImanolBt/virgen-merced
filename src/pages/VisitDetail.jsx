@@ -299,7 +299,7 @@ export default function VisitDetail() {
     cedula: "0502391878",
     phone: "0995361606",
     email: "drwmasapanta@gmail.com",
-    address: "Cotopaxi - Latacunga Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)",
+    address: "Cotopaxi - Latacunga Calle Gustavo Iturralde",
     headerLine1: "Dr. Washington Masapanta MSc.",
     headerLine2: "Seguridad y Salud Ocupacional",
     headerLine3: "Emergencias y desastres",

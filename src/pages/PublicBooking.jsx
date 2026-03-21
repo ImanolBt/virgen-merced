@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 export default function PublicBooking() {
   const [formData, setFormData] = useState({
     name: '',
+    cedula: '',
     phone: '',
     email: '',
     appointmentType: '',
@@ -44,69 +45,139 @@ export default function PublicBooking() {
     }
   }
 
-  async function handleSubmit(e) {
-    e.preventDefault()
-    
-    if (!formData.name || !formData.phone || !formData.email || !formData.appointmentType || !formData.date || !formData.time) {
-      alert('Por favor complete todos los campos')
-      return
-    }
+ async function handleSubmit(e) {
+  e.preventDefault()
+  
+  if (!formData.name || !formData.cedula || !formData.phone || !formData.email || !formData.appointmentType || !formData.date || !formData.time) {
+    alert('Por favor complete todos los campos')
+    return
+  }
 
-    if (formData.phone.length !== 10) {
-      alert('El teléfono debe tener 10 dígitos')
-      return
-    }
+  if (formData.phone.length !== 10) {
+    alert('El teléfono debe tener 10 dígitos')
+    return
+  }
 
-    setLoading(true)
+  if (formData.cedula.length !== 10) {
+    alert('La cédula debe tener 10 dígitos')
+    return
+  }
 
-    try {
-      const appointmentData = {
-        patient_name: formData.name,
-        patient_phone: formData.phone,
-        patient_email: formData.email,
-        appointment_type: formData.appointmentType,
-        appointment_date: formData.date,
-        appointment_time: formData.time,
-        status: 'pending',
-        created_via: 'web_form'
-      }
+  setLoading(true)
 
-      const { data: appointmentCreated, error: appointmentError } = await supabase
-        .from('appointments')
-        .insert(appointmentData)
+  try {
+    // ===== 1. BUSCAR SI EL PACIENTE YA EXISTE (por cédula) =====
+    const { data: existingPatients, error: searchError } = await supabase
+      .from('patients')
+      .select('id')
+      .eq('cedula', formData.cedula)
+      .limit(1)
+
+    if (searchError) throw searchError
+
+    let patientId = null
+
+    // ===== 2. SI NO EXISTE, CREAR PACIENTE NUEVO =====
+    if (!existingPatients || existingPatients.length === 0) {
+      const { data: newPatient, error: patientError } = await supabase
+        .from('patients')
+        .insert({
+          name: formData.name,
+          cedula: formData.cedula,
+          phone: formData.phone,
+          email: formData.email
+          // SIN created_via
+        })
         .select()
         .single()
 
-      if (appointmentError) throw appointmentError
+      if (patientError) {
+        console.error('❌ Error creando paciente:', patientError)
+        throw patientError
+      }
+      
+      patientId = newPatient.id
+      console.log('✅ Nuevo paciente creado:', newPatient)
+    } else {
+      // ===== 3. SI YA EXISTE, USAR ESE ID =====
+      patientId = existingPatients[0].id
+      console.log('✅ Paciente existente encontrado:', patientId)
+      
+      // Actualizar datos por si cambiaron
+      await supabase
+        .from('patients')
+        .update({ 
+          name: formData.name,
+          phone: formData.phone,
+          email: formData.email
+        })
+        .eq('id', patientId)
+    }
 
+    // ===== 4. CREAR LA CITA CON EL PATIENT_ID =====
+    const appointmentData = {
+      patient_id: patientId,
+      patient_name: formData.name,
+      patient_phone: formData.phone,
+      patient_email: formData.email,
+      patient_cedula: formData.cedula,
+      appointment_type: formData.appointmentType,
+      reason: formData.appointmentType,
+      appointment_date: formData.date,
+      appointment_time: formData.time,
+      status: 'pending'
+      // SIN created_via
+    }
+
+    const { data: appointmentCreated, error: appointmentError } = await supabase
+      .from('appointments')
+      .insert(appointmentData)
+      .select()
+      .single()
+
+    if (appointmentError) {
+      console.error('❌ Error creando cita:', appointmentError)
+      throw appointmentError
+    }
+
+    console.log('✅ Cita creada exitosamente:', appointmentCreated)
+
+    // ===== 5. ENVIAR NOTIFICACIONES =====
+    try {
       await supabase.functions.invoke('notify-new-appointment', {
         body: { appointment: appointmentCreated }
       })
-
-      setShowSuccess(true)
-      setFormData({
-        name: '',
-        phone: '',
-        email: '',
-        appointmentType: '',
-        date: '',
-        time: ''
-      })
-
-    } catch (err) {
-      console.error('Error:', err)
-      alert('Error al agendar la cita. Por favor intente nuevamente.')
-    } finally {
-      setLoading(false)
+      console.log('✅ Notificaciones enviadas')
+    } catch (notifError) {
+      console.error('⚠️ Error enviando notificaciones (pero la cita se creó):', notifError)
     }
-  }
 
-  const getMinDate = () => {
-    const today = new Date()
-    const tomorrow = new Date(today)
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    return tomorrow.toISOString().split('T')[0]
+    setShowSuccess(true)
+    setFormData({
+      name: '',
+      cedula: '',
+      phone: '',
+      email: '',
+      appointmentType: '',
+      date: '',
+      time: ''
+    })
+
+  } catch (err) {
+    console.error('Error:', err)
+    alert(`Error al agendar la cita: ${err.message}`)
+  } finally {
+    setLoading(false)
   }
+}
+const getMinDate = () => {
+  const year = new Date().getFullYear()
+  const month = String(new Date().getMonth() + 1).padStart(2, '0')
+  const day = String(new Date().getDate()).padStart(2, '0')
+  const minDate = `${year}-${month}-${day}`
+  console.log('📅 Fecha mínima:', minDate)  // ← DEBUG
+  return minDate
+}
 
   return (
     <div style={{
@@ -135,7 +206,7 @@ export default function PublicBooking() {
           justifyContent: 'center'
         }}>
           <img 
-            src="/logo-top.png" 
+            src="/logo-new.png" 
             alt="Dr. Washington Masapanta" 
             style={{
               width: '100%',
@@ -216,7 +287,52 @@ export default function PublicBooking() {
               }}
             />
           </div>
-
+<div style={{ marginBottom: '22px' }}>
+  <label style={{
+    display: 'block',
+    marginBottom: '8px',
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#2c3e50'
+  }}>
+    Cédula <span style={{ color: '#e74c3c' }}>*</span>
+  </label>
+  <input
+    type="text"
+    name="cedula"
+    value={formData.cedula}
+    onChange={handleChange}
+    required
+    placeholder="1234567890"
+    maxLength="10"
+    style={{
+      width: '100%',
+      padding: '14px 16px',
+      fontSize: '15px',
+      border: '2px solid #e8e8e8',
+      borderRadius: '10px',
+      outline: 'none',
+      boxSizing: 'border-box',
+      background: '#fafafa',
+      transition: 'all 0.2s'
+    }}
+    onFocus={(e) => {
+      e.target.style.borderColor = '#D4AF37'
+      e.target.style.background = 'white'
+    }}
+    onBlur={(e) => {
+      e.target.style.borderColor = '#e8e8e8'
+      e.target.style.background = '#fafafa'
+    }}
+  />
+  <p style={{
+    margin: '6px 0 0',
+    fontSize: '12px',
+    color: '#888'
+  }}>
+    📋 10 dígitos sin guiones
+  </p>
+</div>
           {/* Teléfono */}
           <div style={{ marginBottom: '22px' }}>
             <label style={{

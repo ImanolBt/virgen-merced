@@ -47,7 +47,7 @@ export default function PrescriptionDetail() {
     regMedico: "0503335341 - 1027 - 2023 - 2599595",
     phone: "0984340286",
     email: "drwmasapanta@gmail.com",
-    address: "Cotopaxi - Latacunga Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)",
+    address: "Cotopaxi - Latacunga Calle Gustavo Iturralde",
     place: "Latacunga",
   };
 
@@ -397,7 +397,7 @@ export default function PrescriptionDetail() {
           REG. MÉDICO: 0503335341 - 1027 - 2023 - 2599595
         </div>
         <div class="doctor-contact">
-          Cotopaxi - Latacunga Barrio La Tebaida (Calle Laguna Quilota y pasaje sin nombre)<br/>
+          Cotopaxi - Latacunga Latacunga Calle Gustavo Iturralde<br/>
           Teléfono: 0984340286 | Email: drwmasapanta@gmail.com
         </div>
       </div>
