@@ -128,7 +128,7 @@ _Cita registrada desde el formulario web_`
       </div>
 
       <div style="text-align: center; margin: 30px 0;">
-        <a href="https://virgenmerced.vercel.app/agenda" class="btn">📊 Ver en Dashboard</a>
+        <a href="https://virgen-merced.vercel.app/agenda" class="btn">📊 Ver en Dashboard</a>
       </div>
     </div>
     <div class="footer">
@@ -227,7 +227,7 @@ _Cita registrada desde el formulario web_`
       </p>
 
       <div style="text-align: center;">
-        <a href="https://virgenmerced.vercel.app/agendar" class="btn">📅 Agendar Otra Cita</a>
+        <a href="https://virgen-merced.vercel.app/agendar" class="btn">📅 Agendar Otra Cita</a>
       </div>
 
       <p style="font-size: 12px; color: #999; text-align: center; margin-top: 30px;">

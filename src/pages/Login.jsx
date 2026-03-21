@@ -69,7 +69,7 @@ export default function Login() {
             <label style={{ fontSize: 12, opacity: 0.8 }}>Correo</label>
             <input
               className="mm-input"
-              placeholder="ej: medico@virgenmerced.com"
+              placeholder="ej: medico@virgen-merced.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               disabled={loading}
