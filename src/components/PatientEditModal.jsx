@@ -10,9 +10,40 @@ function toTextArray(csv) {
     .filter(Boolean);
 }
 
-function toCSV(arr) {
-  if (!Array.isArray(arr)) return "";
-  return arr.filter(Boolean).join(", ");
+// ✅ NUEVA: Función para limpiar datos corruptos
+function cleanAllergiesData(value) {
+  if (!value) return "";
+  
+  let cleaned = value;
+  
+  // Si es array, procesar
+  if (Array.isArray(value)) {
+    cleaned = value.join(", ");
+  }
+  
+  // Convertir a string
+  cleaned = String(cleaned);
+  
+  // Limpiar todos los escapes y caracteres JSON
+  cleaned = cleaned
+    .replace(/\\\\/g, '')        // Eliminar \\ 
+    .replace(/\\"/g, '"')        // Convertir \" a "
+    .replace(/\\n/g, '\n')       // Convertir \n a salto de línea
+    .replace(/\["/g, '')         // Eliminar ["
+    .replace(/"]/g, '')          // Eliminar "]
+    .replace(/^\[/g, '')         // Eliminar [ al inicio
+    .replace(/]$/g, '')          // Eliminar ] al final
+    .replace(/^"/g, '')          // Eliminar " al inicio
+    .replace(/"$/g, '')          // Eliminar " al final
+    .replace(/","/g, ', ')       // Convertir "," a ,
+    .replace(/"\s*,\s*"/g, ', ') // Convertir " , " a ,
+    .trim();
+  
+  return cleaned;
+}
+
+function toCSV(value) {
+  return cleanAllergiesData(value);
 }
 
 function calcAgeFromBirthdate(birthdate) {
@@ -63,26 +94,57 @@ export default function PatientEditModal({ open, patient, onClose, onSaved }) {
 
   // ✅ Cargar datos del paciente cuando se abre el modal
   useEffect(() => {
-    if (!open || !patient) return;
+    if (!open || !patient) {
+      setName("");
+      setSex("F");
+      setCedula("");
+      setPhone("");
+      setBirthdate("");
+      setAgeManual("");
+      setAllergiesCSV("");
+      setNotes("");
+      return;
+    }
+
     setName(patient.name || "");
     setSex(patient.sex || "F");
     setCedula(patient.cedula || "");
     setPhone(patient.phone || "");
-    setBirthdate(patient.birthdate ? String(patient.birthdate).slice(0, 10) : "");
+    
+    if (patient.birthdate) {
+      const dateStr = String(patient.birthdate);
+      if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        setBirthdate(dateStr);
+      } else {
+        const d = new Date(dateStr);
+        if (!isNaN(d.getTime())) {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          setBirthdate(`${year}-${month}-${day}`);
+        } else {
+          setBirthdate("");
+        }
+      }
+    } else {
+      setBirthdate("");
+    }
+    
     setAgeManual(patient.age ? String(patient.age) : "");
-    setAllergiesCSV(toCSV(patient.allergies || []));
-    setNotes(patient.notes || "");
+    
+    // ✅ LIMPIEZA AUTOMÁTICA de datos corruptos
+    setAllergiesCSV(cleanAllergiesData(patient.allergies));
+    
+    // ✅ TAMBIÉN limpiar notas si tienen escapes
+    setNotes(cleanAllergiesData(patient.notes));
   }, [open, patient]);
 
-  // ✅ Calcular edad automáticamente desde fecha de nacimiento
   const autoAge = useMemo(() => calcAgeFromBirthdate(birthdate), [birthdate]);
 
-  // ✅ Si hay fecha de nacimiento, limpiar edad manual
   useEffect(() => {
     if (birthdate) setAgeManual("");
   }, [birthdate]);
 
-  // ✅ Validación de edad manual
   const ageManualNum = useMemo(() => {
     const s = String(ageManual || "").trim();
     if (!s) return null;
@@ -90,17 +152,13 @@ export default function PatientEditModal({ open, patient, onClose, onSaved }) {
     return Number.isFinite(n) && n >= 0 ? n : null;
   }, [ageManual]);
 
-  // ✅ Validación para habilitar guardar
   const canSave = useMemo(() => {
     if (!patient?.id) return false;
-
     const hasName = name.trim().length >= 3;
     const hasBirthOrAge = Boolean(birthdate) || ageManualNum !== null;
-
     return hasName && hasBirthOrAge && !saving;
   }, [patient, name, birthdate, ageManualNum, saving]);
 
-  // ✅ Valor que se muestra en el input de edad
   const displayedAgeValue = useMemo(() => {
     if (birthdate && autoAge !== null) return String(autoAge);
     return String(ageManual || "");
@@ -111,8 +169,10 @@ export default function PatientEditModal({ open, patient, onClose, onSaved }) {
 
     setSaving(true);
 
-    // ✅ Calcular edad dentro de la función save
     const calculatedAge = birthdate ? calcAgeFromBirthdate(birthdate) : ageManualNum;
+
+    // ✅ Convertir alergias: texto limpio → array simple
+    const allergiesArray = toTextArray(allergiesCSV);
 
     const payload = {
       name: name.trim(),
@@ -120,8 +180,8 @@ export default function PatientEditModal({ open, patient, onClose, onSaved }) {
       cedula: cedula.trim() || null,
       phone: phone.trim() || null,
       birthdate: birthdate || null,
-      age: calculatedAge, // ✅ Ahora funciona correctamente
-      allergies: toTextArray(allergiesCSV),
+      age: calculatedAge,
+      allergies: allergiesArray.length > 0 ? allergiesArray : null,
       notes: notes.trim() || null,
     };
 
@@ -203,7 +263,6 @@ export default function PatientEditModal({ open, patient, onClose, onSaved }) {
             />
           </div>
 
-          {/* ✅ Mostrar edad calculada */}
           <div className="mm-hint" style={{ marginTop: -6 }}>
             Edad calculada: <b>{birthdate ? ageLabelFromBirthdate(birthdate) : (ageManualNum !== null ? `${ageManualNum} año(s)` : "-")}</b>
           </div>

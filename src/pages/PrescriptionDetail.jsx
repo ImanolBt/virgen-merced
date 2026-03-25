@@ -16,9 +16,61 @@ function fmtDateLong(dateISO) {
 
   return `${parseInt(day)} de ${meses[parseInt(month) - 1]} de ${year}`;
 }
+
 function fmtDateShort(dateISO) {
   const d = dateISO ? new Date(dateISO) : new Date();
   return d.toLocaleDateString("es-EC", { year: "numeric", month: "2-digit", day: "2-digit" });
+}
+
+function calcAgeFromBirthdate(birthdate) {
+  if (!birthdate) return null;
+  const b = new Date(birthdate);
+  if (Number.isNaN(b.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - b.getFullYear();
+  const m = today.getMonth() - b.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < b.getDate())) age--;
+  return age >= 0 ? age : null;
+}
+
+function ageLabelFromBirthdate(birthdate) {
+  if (!birthdate) return "-";
+  const b = new Date(birthdate);
+  if (Number.isNaN(b.getTime())) return "-";
+  const today = new Date();
+  let years = today.getFullYear() - b.getFullYear();
+  let months = today.getMonth() - b.getMonth();
+  let days = today.getDate() - b.getDate();
+  if (days < 0) months--;
+  if (months < 0) {
+    years--;
+    months += 12;
+  }
+  if (years <= 0) return `${Math.max(months, 0)} mes(es)`;
+  return `${years} año(s)`;
+}
+
+function cleanAllergiesData(value) {
+  if (!value) return "";
+  let cleaned = value;
+  if (Array.isArray(value)) {
+    cleaned = value.join(", ");
+  }
+  cleaned = String(cleaned);
+  cleaned = cleaned
+    .replace(/\\\\/g, '')
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, '\n')
+    .replace(/\["/g, '')
+    .replace(/"]/g, '')
+    .replace(/^\[/g, '')
+    .replace(/]$/g, '')
+    .replace(/^"/g, '')
+    .replace(/"$/g, '')
+    .replace(/","/g, ', ')
+    .replace(/"\s*,\s*"/g, ', ')
+    .trim();
+  return cleaned;
 }
 
 export default function PrescriptionDetail() {
@@ -55,7 +107,6 @@ export default function PrescriptionDetail() {
     if (!visitId) return;
     setLoading(true);
 
-    // ✅ Cargar visita
     const v = await supabase
       .from("medical_visits")
       .select("id, patient_id, visit_date, reason, notes, created_at, prescription_notes")
@@ -69,7 +120,6 @@ export default function PrescriptionDetail() {
       return;
     }
 
-    // ✅ Cargar TODOS los diagnósticos desde tabla separada
     const diagRes = await supabase
       .from("medical_visit_diagnoses")
       .select("cie10_code, cie10_name")
@@ -77,7 +127,6 @@ export default function PrescriptionDetail() {
 
     const diagnoses = diagRes.data || [];
 
-    // ✅ Cargar paciente
     const p = await supabase.from("patients").select("*").eq("id", v.data.patient_id).single();
     if (p.error) {
       console.error(p.error);
@@ -87,11 +136,9 @@ export default function PrescriptionDetail() {
     }
     setPatient(p.data);
 
-    // ✅ Guardar visita con diagnósticos incluidos
     setVisit({ ...v.data, diagnoses });
     setRxNotes(v.data?.prescription_notes || "");
 
-    // ✅ Cargar items de prescripción
     const it = await supabase
       .from("prescription_items")
       .select("id, encounter_id, med, instructions, sort_order")
@@ -193,13 +240,17 @@ export default function PrescriptionDetail() {
   <meta charset="utf-8" />
   <title>Receta Médica</title>
   <style>
-    @page { size: A4; margin: 10mm; }
+    @page { 
+      size: A4; 
+      margin: 8mm 10mm; 
+    }
 
     body { 
       font-family: Arial, sans-serif; 
       color: #111; 
       margin: 0; 
       padding: 0;
+      font-size: 10px;
     }
     
     .paper { 
@@ -208,17 +259,18 @@ export default function PrescriptionDetail() {
       margin: 0 auto;
     }
 
-    /* Marca de agua */
-    .watermark {
+.watermark {
       position: fixed;
       inset: 0;
       background-image: url("${LOGO_WM}");
       background-repeat: no-repeat;
       background-position: center;
-      background-size: 500px auto;
-      opacity: 0.10;
+      background-size: 450px auto;
+      opacity: 0.15;
       pointer-events: none;
       z-index: 0;
+      print-color-adjust: exact;
+      -webkit-print-color-adjust: exact;
     }
     
     .content { 
@@ -226,12 +278,11 @@ export default function PrescriptionDetail() {
       z-index: 1; 
     }
 
-    /* ✅ HEADER: Logo izquierda, datos doctor derecha */
     .header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
     }
     
     .logo-section {
@@ -239,194 +290,133 @@ export default function PrescriptionDetail() {
     }
     
     .logoTop { 
-      height: 60px; 
+      height: 50px; 
       width: auto;
       object-fit: contain;
       display: block;
     }
 
     .location-info {
-      font-size: 9px;
+      font-size: 8px;
       color: #555;
-      margin-top: 4px;
-      line-height: 1.3;
+      margin-top: 3px;
+      line-height: 1.25;
     }
     
     .doctor-header-info {
       text-align: right;
-      font-size: 8.5px;
+      font-size: 7.5px;
       color: #333;
-      line-height: 1.35;
+      lineHeight: 1.3;
       font-weight: 600;
     }
 
-    /* Título */
-    .title { 
-      font-size: 16px; 
-      font-weight: 700; 
-      text-align: center; 
-      margin: 12px 0 10px;
+    .title {
+      font-size: 13px;
+      font-weight: 700;
+      text-align: center;
+      margin: 8px 0 6px;
       color: #2c3e50;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
 
-    /* Info del paciente */
-    .patient-info { 
-      font-size: 11px; 
-      line-height: 1.5; 
-      margin-bottom: 12px;
-    }
-    
-    .patient-info div {
-      margin-bottom: 3px;
-    }
-    
-    .patient-info b { 
-      font-weight: 700;
-      color: #000;
-    }
-
-    /* Tabla de medicamentos */
-    table { 
-      width: 100%; 
-      border-collapse: collapse; 
-      margin: 8px 0;
-    }
-    
-    th, td { 
-      border: 1px solid #ddd; 
-      padding: 7px; 
-      vertical-align: top;
-      text-align: left;
-    }
-    
-    th { 
-      font-size: 10px;
-      font-weight: 600;
-      background: #f1f3f5;
-      color: #2c3e50;
-    }
-    
-    td { 
-      font-size: 9.5px; 
-      white-space: pre-wrap;
+    .patient-info {
+      font-size: 9px;
       line-height: 1.4;
+      margin-bottom: 8px;
     }
 
-    thead { display: table-header-group; }
-    tr { page-break-inside: avoid; break-inside: avoid; }
+    .patient-info div {
+      margin-bottom: 2px;
+    }
 
-    /* Notas */
-    .notes-section {
-      margin-top: 10px;
-      padding: 7px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 6px 0;
+      font-size: 8.5px;
+    }
+
+    th {
+      border: 1px solid #ccc;
+      padding: 5px;
+      text-align: left;
+      background: #f1f3f5;
+      font-weight: 600;
+      font-size: 9px;
+    }
+
+    td {
+      border: 1px solid #ccc;
+      padding: 5px;
+      vertical-align: top;
+      font-size: 8.5px;
+      line-height: 1.35;
+    }
+
+    .notes-box {
+      margin-top: 8px;
+      padding: 5px;
       background: #fffbf0;
       border-left: 2px solid #f39c12;
-      font-size: 9.5px;
-      line-height: 1.4;
-    }
-    
-    .notes-section b {
-      color: #e67e22;
-    }
-
-    /* ✅ FIRMA CON ESPACIO PARA FIRMAR A MANO */
-    .signature-section {
-      margin-top: 25px;
-      page-break-inside: avoid;
-      break-inside: avoid;
-      text-align: center;
-    }
-    
-    .signature-line {
-      width: 280px;
-      margin: 0 auto;
-      border-bottom: 1.5px solid #333;
-      padding-top: 50px;
-    }
-    
-    .doctor-name { 
-      font-size: 11px; 
-      font-weight: 700; 
-      margin-top: 8px;
-      margin-bottom: 3px;
-      color: #2c3e50;
-    }
-    
-    .doctor-details { 
-      font-size: 9px; 
-      color: #555; 
+      font-size: 8.5px;
       line-height: 1.3;
-      margin-bottom: 4px;
-    }
-    
-    .doctor-contact { 
-      font-size: 8.5px; 
-      color: #777; 
-      line-height: 1.2;
     }
 
-    .force-new-page {
-      page-break-before: always;
-      break-before: page;
-    }
-
-    /* Imprimir fondos */
-    * {
-      -webkit-print-color-adjust: exact !important;
-      print-color-adjust: exact !important;
-      color-adjust: exact !important;
+    @media print {
+      body { 
+        margin: 0;
+        padding: 0;
+      }
+      .watermark {
+        background-size: 400px auto;
+      }
     }
   </style>
 </head>
 <body>
   <div class="watermark"></div>
-
   <div class="paper">
     <div class="content">
       ${html}
-
-      <!-- ✅ Firma al final CON ESPACIO PARA FIRMAR -->
-      <div id="sig" class="signature-section">
-        <div class="signature-line"></div>
-        <div class="doctor-name">ESP. WASHINGTON MASAPANTA</div>
-        <div class="doctor-details">
-          EMERGENCIAS, DIABETES Y OBESIDAD<br/>
-          CÉDULA: 050333534-1<br/>
-          REG. MÉDICO: 0503335341 - 1027 - 2023 - 2599595
-        </div>
-        <div class="doctor-contact">
-          Cotopaxi - Latacunga Latacunga Calle Gustavo Iturralde<br/>
-          Teléfono: 0984340286 | Email: drwmasapanta@gmail.com
-        </div>
-      </div>
     </div>
   </div>
-
   <script>
-    (function () {
-      function run() {
-        const sig = document.getElementById('sig');
-        if (!sig) return;
+    window.onload = function() {
+      const images = document.querySelectorAll('img');
+      const totalImages = images.length;
+      let loadedImages = 0;
 
-        const rect = sig.getBoundingClientRect();
-        const pageH = window.innerHeight;
-        const SAFE = 100;
-
-        if (rect.bottom > (pageH - SAFE)) {
-          sig.classList.add('force-new-page');
+      function checkAndPrint() {
+        loadedImages++;
+        if (loadedImages === totalImages) {
+          setTimeout(() => {
+            window.focus();
+            window.print();
+          }, 300);
         }
+      }
 
+      if (totalImages === 0) {
         setTimeout(() => {
           window.focus();
           window.print();
-        }, 250);
+        }, 200);
+      } else {
+        images.forEach(img => {
+          if (img.complete) {
+            checkAndPrint();
+          } else {
+            img.onload = checkAndPrint;
+            img.onerror = () => {
+              console.warn('Error cargando imagen:', img.src);
+              checkAndPrint();
+            };
+          }
+        });
       }
-
-      if (document.readyState === 'complete') run();
-      else window.addEventListener('load', run);
-    })();
+    }
   </script>
 </body>
 </html>
@@ -438,30 +428,25 @@ export default function PrescriptionDetail() {
   if (loading) return <div className="mm-empty">Cargando receta...</div>;
   if (!visit || !patient) return <div className="mm-empty">No se encontró la consulta.</div>;
 
-  // ✅ FORMATEAR MÚLTIPLES DIAGNÓSTICOS
-  const diag = visit.diagnoses && visit.diagnoses.length > 0
-    ? visit.diagnoses
-        .map(d => {
-          if (d.cie10_code && d.cie10_name) {
-            return `${d.cie10_name} (${d.cie10_code})`;
-          }
-          return d.cie10_name || d.cie10_code || "";
-        })
-        .filter(Boolean)
-        .join(", ")
+  const rxDateISO = visit.visit_date ? String(visit.visit_date).slice(0, 10) : new Date().toISOString().slice(0, 10);
+
+  const diag = Array.isArray(visit.diagnoses) && visit.diagnoses.length > 0
+    ? visit.diagnoses.map((d) => `${d.cie10_name} (${d.cie10_code})`).join(", ")
     : "-";
 
-  const rxDateISO = visit.visit_date || new Date().toISOString();
+  const age = calcAgeFromBirthdate(patient.birthdate) || patient.age || "-";
+  const ageLabel = patient.birthdate ? ageLabelFromBirthdate(patient.birthdate) : (patient.age ? `${patient.age} año(s)` : "-");
+  const sex = patient.sex === "M" ? "Masculino" : "Femenino";
+  const allergies = cleanAllergiesData(patient.allergies) || "Ninguna";
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: 14, display: "grid", gap: 14 }}>
       <div className="mm-card">
         <div className="mm-cardHead" style={{ justifyContent: "space-between" }}>
           <div>
-            <div className="mm-cardTitle">Receta</div>
+            <div className="mm-cardTitle">Receta médica</div>
             <div style={{ opacity: 0.85, fontSize: 13 }}>
-              Paciente: <b>{patient.name}</b> · CI: <b>{patient.cedula || "-"}</b> · Fecha:{" "}
-              <b>{new Date(rxDateISO).toLocaleString("es-EC")}</b>
+              Paciente: <b>{patient.name}</b> · Consulta #{visit.id}
             </div>
           </div>
 
@@ -552,26 +537,26 @@ export default function PrescriptionDetail() {
 
           <div style={{ padding: 14 }}>
             <div ref={printRef}>
-              {/* ✅ HEADER: Logo + ubicación a la IZQUIERDA | Datos doctor a la DERECHA */}
+              {/* HEADER */}
               <div style={{
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "flex-start",
                 marginBottom: 8
               }}>
-                {/* IZQUIERDA: Logo + ubicación */}
                 <div style={{ flexShrink: 0 }}>
                   <img 
                     src="/logo-top.png" 
                     alt="Virgen de la Merced"
+                    className="logoTop"
                     style={{
-                      height: "132px",
+                      height: "110px",
                       width: "auto",
                       objectFit: "contain",
                       display: "block"
                     }}
                   />
-                  <div style={{
+                  <div className="location-info" style={{
                     fontSize: "9px",
                     color: "#555",
                     marginTop: 4,
@@ -583,8 +568,7 @@ export default function PrescriptionDetail() {
                   </div>
                 </div>
 
-                {/* DERECHA: Datos del doctor */}
-                <div style={{
+                <div className="doctor-header-info" style={{
                   textAlign: "right",
                   fontSize: "8.5px",
                   color: "#333",
@@ -599,11 +583,11 @@ export default function PrescriptionDetail() {
               </div>
 
               {/* TÍTULO */}
-              <div style={{
-                fontSize: 16,
+              <div className="title" style={{
+                fontSize: 14,
                 fontWeight: 700,
                 textAlign: "center",
-                margin: "12px 0 10px",
+                margin: "10px 0 8px",
                 color: "#2c3e50",
                 textTransform: "uppercase",
                 letterSpacing: "0.3px"
@@ -611,45 +595,46 @@ export default function PrescriptionDetail() {
                 RECETA MÉDICA
               </div>
 
-              {/* INFO DEL PACIENTE */}
-              <div style={{
-                fontSize: 11,
-                lineHeight: 1.5,
-                marginBottom: 12
+              {/* INFO DEL PACIENTE - MEJORADA */}
+              <div className="patient-info" style={{
+                fontSize: 10,
+                lineHeight: 1.45,
+                marginBottom: 10
               }}>
-                <div style={{ marginBottom: 3 }}><b>Paciente:</b> {patient.name}</div>
-                <div style={{ marginBottom: 3 }}><b>CI:</b> {patient.cedula || "-"} &nbsp;&nbsp; <b>Tel:</b> {patient.phone || CLINIC_PHONE}</div>
-                <div style={{ marginBottom: 3 }}><b>Fecha de atención:</b> {fmtDateShort(rxDateISO)}</div>
-                <div><b>Diagnóstico (CIE10):</b> {diag}</div>
+                <div><b>Paciente:</b> {patient.name}</div>
+                <div><b>Historia clínica N°:</b> {patient.id} &nbsp;&nbsp; <b>CI:</b> {patient.cedula || "-"}</div>
+                <div><b>Edad:</b> {ageLabel} &nbsp;&nbsp; <b>Sexo:</b> {sex} &nbsp;&nbsp; <b>Tel:</b> {patient.phone || CLINIC_PHONE}</div>
+                <div><b>Antecedente alérgico:</b> {allergies}</div>
+                <div><b>Fecha de atención:</b> {fmtDateShort(rxDateISO)} &nbsp;&nbsp; <b>Diagnóstico (CIE10):</b> {diag}</div>
               </div>
 
               {/* TABLA DE MEDICAMENTOS */}
               <table style={{
                 width: "100%",
                 borderCollapse: "collapse",
-                margin: "8px 0",
-                fontSize: 10
+                margin: "6px 0",
+                fontSize: 9
               }}>
                 <thead>
                   <tr>
                     <th style={{
                       width: "40%",
                       border: "1px solid #ddd",
-                      padding: 7,
+                      padding: 6,
                       textAlign: "left",
                       background: "#f1f3f5",
                       fontWeight: 600,
-                      fontSize: 10
+                      fontSize: 9
                     }}>
                       Medicamento
                     </th>
                     <th style={{
                       border: "1px solid #ddd",
-                      padding: 7,
+                      padding: 6,
                       textAlign: "left",
                       background: "#f1f3f5",
                       fontWeight: 600,
-                      fontSize: 10
+                      fontSize: 9
                     }}>
                       Indicaciones
                     </th>
@@ -662,19 +647,19 @@ export default function PrescriptionDetail() {
                       <tr key={x.id ?? idx}>
                         <td style={{
                           border: "1px solid #ddd",
-                          padding: 7,
+                          padding: 6,
                           verticalAlign: "top",
-                          fontSize: "9.5px",
-                          lineHeight: 1.4
+                          fontSize: "8.5px",
+                          lineHeight: 1.35
                         }}>
                           {x.med}
                         </td>
                         <td style={{
                           border: "1px solid #ddd",
-                          padding: 7,
+                          padding: 6,
                           verticalAlign: "top",
-                          fontSize: "9.5px",
-                          lineHeight: 1.4,
+                          fontSize: "8.5px",
+                          lineHeight: 1.35,
                           whiteSpace: "pre-wrap"
                         }}>
                           {x.instructions}
@@ -688,10 +673,10 @@ export default function PrescriptionDetail() {
                         colSpan={2} 
                         style={{
                           border: "1px solid #ddd",
-                          padding: 7,
+                          padding: 6,
                           textAlign: "center",
                           opacity: 0.7,
-                          fontSize: "9.5px"
+                          fontSize: "8.5px"
                         }}
                       >
                         Aún no hay medicamentos válidos.
@@ -701,19 +686,41 @@ export default function PrescriptionDetail() {
                 </tbody>
               </table>
 
-              {/* NOTAS ADICIONALES */}
+             {/* NOTAS ADICIONALES */}
               {rxNotes?.trim() ? (
-                <div style={{
-                  marginTop: 10,
-                  padding: 7,
+                <div className="notes-box" style={{
+                  marginTop: 8,
+                  padding: 6,
                   background: "#fffbf0",
                   borderLeft: "2px solid #f39c12",
-                  fontSize: "9.5px",
-                  lineHeight: 1.4
+                  fontSize: "8.5px",
+                  lineHeight: 1.35
                 }}>
                   <b style={{ color: "#e67e22" }}>Notas:</b> {rxNotes}
                 </div>
               ) : null}
+
+              {/* FIRMA DEL DOCTOR */}
+              <div style={{
+                marginTop: 14,
+                textAlign: "center",
+                fontSize: "9px",
+                lineHeight: 1.4
+              }}>
+                <div style={{ marginBottom: 6 }}>Atentamente,</div>
+                <div style={{ 
+                  borderTop: "1px solid #333", 
+                  width: "200px", 
+                  margin: "20px auto 6px",
+                  paddingTop: 4
+                }}></div>
+                <div style={{ fontWeight: 700, fontSize: "10px" }}>{doctor.fullName}</div>
+                <div style={{ fontWeight: 600 }}>{doctor.specialty}</div>
+                <div>CÉDULA: {doctor.cedula}</div>
+                <div>CELULAR: {doctor.phone}</div>
+                <div>CORREO: {doctor.email}</div>
+                <div style={{ marginTop: 4 }}>Dirección: {doctor.address}</div>
+              </div>
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import VisitForm from "../components/VisitForm";
 import PatientEditModal from "../components/PatientEditModal";
+import ImageZoomModal from "../components/ImageZoomModal";
 
 function calcAgeFromBirthdate(birthdate) {
   if (!birthdate) return null;
@@ -343,100 +344,12 @@ export default function PatientDetail() {
         onSaved={loadAll}
       />
 
-      {/* 📸 NUEVO: Modal para ver imagen */}
+      {/* 📸 NUEVO: Modal para ver imagen CON ZOOM */}
       {imageModalOpen && imageModalUrl && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.85)",
-            display: "grid",
-            placeItems: "center",
-            zIndex: 9999,
-            padding: 20,
-            backdropFilter: "blur(4px)"
-          }}
-          onClick={closeImageModal}
-        >
-          <div
-            style={{
-              position: "relative",
-              maxWidth: "90vw",
-              maxHeight: "90vh",
-              background: "white",
-              borderRadius: 16,
-              overflow: "hidden",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{
-              padding: "16px 20px",
-              borderBottom: "1px solid #e0e0e0",
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              background: "#f8f9fa"
-            }}>
-              <div style={{ fontWeight: 600, fontSize: 16, color: "#2c3e50" }}>
-                📸 Imagen de la consulta
-              </div>
-              <button
-                onClick={closeImageModal}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  fontSize: 24,
-                  cursor: "pointer",
-                  color: "#666",
-                  padding: "4px 8px",
-                  lineHeight: 1
-                }}
-              >
-                ×
-              </button>
-            </div>
-            
-            <div style={{
-              padding: 20,
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              maxHeight: "calc(90vh - 100px)",
-              overflow: "auto"
-            }}>
-              <img
-                src={imageModalUrl}
-                alt="Imagen de consulta"
-                style={{
-                  maxWidth: "100%",
-                  maxHeight: "calc(90vh - 140px)",
-                  objectFit: "contain",
-                  borderRadius: 8
-                }}
-                onError={(e) => {
-                  e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='300'%3E%3Crect fill='%23f0f0f0' width='400' height='300'/%3E%3Ctext x='50%25' y='50%25' text-anchor='middle' fill='%23999' font-size='16'%3EError cargando imagen%3C/text%3E%3C/svg%3E";
-                }}
-              />
-            </div>
-
-            <div style={{
-              padding: "12px 20px",
-              borderTop: "1px solid #e0e0e0",
-              background: "#f8f9fa",
-              textAlign: "center"
-            }}>
-              <button
-                onClick={closeImageModal}
-                className="mm-btn mm-btn--ghost"
-              >
-                Cerrar
-              </button>
-            </div>
-          </div>
-        </div>
+        <ImageZoomModal 
+          imageUrl={imageModalUrl} 
+          onClose={closeImageModal} 
+        />
       )}
     </div>
   );
