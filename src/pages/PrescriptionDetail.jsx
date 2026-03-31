@@ -229,7 +229,7 @@ export default function PrescriptionDetail() {
 
     const html = node.innerHTML;
 
-    const w = window.open("", "_blank", "width=900,height=1200");
+    const w = window.open("", "_blank", "width=1200,height=900");
     if (!w) return;
 
     w.document.open();
@@ -241,8 +241,8 @@ export default function PrescriptionDetail() {
   <title>Receta Médica</title>
   <style>
     @page { 
-      size: A4; 
-      margin: 8mm 10mm; 
+      size: A4 landscape; 
+      margin: 6mm 8mm; 
     }
 
     body { 
@@ -250,118 +250,16 @@ export default function PrescriptionDetail() {
       color: #111; 
       margin: 0; 
       padding: 0;
-      font-size: 10px;
-    }
-    
-    .paper { 
-      position: relative;
-      max-width: 210mm;
-      margin: 0 auto;
-    }
-
-.watermark {
-      position: fixed;
-      inset: 0;
-      background-image: url("${LOGO_WM}");
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 450px auto;
-      opacity: 0.15;
-      pointer-events: none;
-      z-index: 0;
-      print-color-adjust: exact;
-      -webkit-print-color-adjust: exact;
-    }
-    
-    .content { 
-      position: relative; 
-      z-index: 1; 
-    }
-
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 6px;
-    }
-    
-    .logo-section {
-      flex-shrink: 0;
-    }
-    
-    .logoTop { 
-      height: 50px; 
-      width: auto;
-      object-fit: contain;
-      display: block;
-    }
-
-    .location-info {
-      font-size: 8px;
-      color: #555;
-      margin-top: 3px;
-      line-height: 1.25;
-    }
-    
-    .doctor-header-info {
-      text-align: right;
-      font-size: 7.5px;
-      color: #333;
-      lineHeight: 1.3;
-      font-weight: 600;
-    }
-
-    .title {
-      font-size: 13px;
-      font-weight: 700;
-      text-align: center;
-      margin: 8px 0 6px;
-      color: #2c3e50;
-      text-transform: uppercase;
-      letter-spacing: 0.3px;
-    }
-
-    .patient-info {
       font-size: 9px;
-      line-height: 1.4;
-      margin-bottom: 8px;
     }
-
-    .patient-info div {
-      margin-bottom: 2px;
+    
+    * {
+      box-sizing: border-box;
     }
 
     table {
       width: 100%;
       border-collapse: collapse;
-      margin: 6px 0;
-      font-size: 8.5px;
-    }
-
-    th {
-      border: 1px solid #ccc;
-      padding: 5px;
-      text-align: left;
-      background: #f1f3f5;
-      font-weight: 600;
-      font-size: 9px;
-    }
-
-    td {
-      border: 1px solid #ccc;
-      padding: 5px;
-      vertical-align: top;
-      font-size: 8.5px;
-      line-height: 1.35;
-    }
-
-    .notes-box {
-      margin-top: 8px;
-      padding: 5px;
-      background: #fffbf0;
-      border-left: 2px solid #f39c12;
-      font-size: 8.5px;
-      line-height: 1.3;
     }
 
     @media print {
@@ -369,14 +267,14 @@ export default function PrescriptionDetail() {
         margin: 0;
         padding: 0;
       }
-      .watermark {
-        background-size: 400px auto;
+      img {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
       }
     }
   </style>
 </head>
 <body>
-  <div class="watermark"></div>
   <div class="paper">
     <div class="content">
       ${html}
@@ -433,11 +331,6 @@ export default function PrescriptionDetail() {
   const diag = Array.isArray(visit.diagnoses) && visit.diagnoses.length > 0
     ? visit.diagnoses.map((d) => `${d.cie10_name} (${d.cie10_code})`).join(", ")
     : "-";
-
-  const age = calcAgeFromBirthdate(patient.birthdate) || patient.age || "-";
-  const ageLabel = patient.birthdate ? ageLabelFromBirthdate(patient.birthdate) : (patient.age ? `${patient.age} año(s)` : "-");
-  const sex = patient.sex === "M" ? "Masculino" : "Femenino";
-  const allergies = cleanAllergiesData(patient.allergies) || "Ninguna";
 
   return (
     <div style={{ maxWidth: 1200, margin: "0 auto", padding: 14, display: "grid", gap: 14 }}>
@@ -531,195 +424,368 @@ export default function PrescriptionDetail() {
 
         <div className="mm-card">
           <div className="mm-cardHead">
-            <div className="mm-cardTitle">Vista previa (Receta)</div>
+            <div className="mm-cardTitle">Vista previa (Receta Horizontal)</div>
             <div className="mm-chip">PDF</div>
           </div>
 
           <div style={{ padding: 14 }}>
             <div ref={printRef}>
-              {/* HEADER */}
+              {/* HEADER: FECHA Y NÚMERO DE RECETA */}
               <div style={{
                 display: "flex",
                 justifyContent: "space-between",
-                alignItems: "flex-start",
-                marginBottom: 8
+                alignItems: "center",
+                marginBottom: 3
               }}>
-                <div style={{ flexShrink: 0 }}>
+                <div style={{ fontSize: "10px", color: "#666", fontWeight: 600 }}>
+                  Fecha: {fmtDateShort(rxDateISO)}
+                </div>
+                <div style={{ fontSize: "11px", color: "#666" }}>
+                  Receta N° <span style={{ 
+                    color: "#e74c3c", 
+                    fontWeight: 700,
+                    fontSize: "14px",
+                    letterSpacing: "1px"
+                  }}>
+                    {String(visit.id).padStart(7, '0')}
+                  </span>
+                </div>
+              </div>
+
+              {/* HEADER PRINCIPAL - COMPACTO */}
+              <div style={{
+                border: "2px solid #000",
+                borderRadius: 6,
+                padding: "5px 10px 7px 10px",
+                marginBottom: 3,
+                position: "relative",
+                overflow: "visible"
+              }}>
+                {/* Logo */}
+                <div style={{ 
+                  width: "100%",
+                  display: "flex",
+                  justifyContent: "center",
+                  position: "relative",
+                  marginTop: "-18px",
+                  marginBottom: "-10px"
+                }}>
                   <img 
                     src="/logo-top.png" 
-                    alt="Virgen de la Merced"
-                    className="logoTop"
+                    alt="Logo"
                     style={{
-                      height: "110px",
-                      width: "auto",
+                      width: "160px",
+                      height: "auto",
                       objectFit: "contain",
                       display: "block"
                     }}
                   />
-                  <div className="location-info" style={{
-                    fontSize: "9px",
-                    color: "#555",
-                    marginTop: 4,
-                    lineHeight: 1.3
-                  }}>
-                    {doctor.place}, {fmtDateLong(rxDateISO)}<br/>
-                    Tel: {CLINIC_PHONE}<br/>
-                    {doctor.email}
+                </div>
+
+                {/* Datos doctor */}
+                <div style={{ textAlign: "center", width: "100%" }}>
+                  <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: 1 }}>
+                    Dr. Washington Masapanta MsC
+                  </div>
+                  <div style={{ fontSize: "7px", lineHeight: 1.15, fontWeight: 600 }}>
+                    EMERGENCIAS Y DESASTRES / DIABETES Y OBESIDAD / SEGURIDAD Y SALUD OCUPACIONAL<br/>
+                    DIABETES · HIPERTENSIÓN · TIROIDES · MEDICINA GENERAL · CARDIACA · GASTROINTESTINAL · SOBREPESO/OBESIDAD
+                  </div>
+                  <div style={{ fontSize: "7.5px", marginTop: 2, fontWeight: 600 }}>
+                    📍 Gustavo Iturralde 1-67 y Calixto Pino · LATACUNGA · 📞 0995361606 · ✉ drwmasapanta@gmail.com
                   </div>
                 </div>
+              </div>
 
-                <div className="doctor-header-info" style={{
-                  textAlign: "right",
-                  fontSize: "8.5px",
-                  color: "#333",
-                  lineHeight: 1.35,
-                  fontWeight: 600
+              {/* SERVICIO */}
+              <div style={{
+                border: "1px solid #000",
+                padding: "2px 5px",
+                marginBottom: 2,
+                fontSize: "8.5px",
+                fontWeight: 600
+              }}>
+                SERVICIO / ESPECIALIDAD: {doctor.specialty}
+              </div>
+
+              {/* DATOS PACIENTE HEADER */}
+              <div style={{
+                border: "1px solid #000",
+                borderBottom: "none",
+                padding: "2px 5px",
+                fontSize: "8.5px",
+                fontWeight: 700,
+                background: "#f5f5f5"
+              }}>
+                DATOS DEL PACIENTE
+              </div>
+
+              {/* FILA 1: NOMBRE + HC + DOC */}
+              <div style={{
+                display: "flex",
+                border: "1px solid #000",
+                borderBottom: "none"
+              }}>
+                <div style={{
+                  flex: 2,
+                  borderRight: "1px solid #000",
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
                 }}>
-                  <div>{doctor.fullName}</div>
-                  <div>{doctor.specialty}</div>
-                  <div>CÉDULA: {doctor.cedula}</div>
-                  <div>REG. MÉDICO: {doctor.regMedico}</div>
+                  <b>NOMBRES:</b> {patient.name}
+                </div>
+                <div style={{
+                  width: "85px",
+                  borderRight: "1px solid #000",
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
+                }}>
+                  <b>H.C.:</b> {patient.id}
+                </div>
+                <div style={{
+                  flex: 1,
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
+                }}>
+                  <b>DOC:</b> {patient.cedula || "-"}
                 </div>
               </div>
 
-              {/* TÍTULO */}
-              <div className="title" style={{
-                fontSize: 14,
-                fontWeight: 700,
-                textAlign: "center",
-                margin: "10px 0 8px",
-                color: "#2c3e50",
-                textTransform: "uppercase",
-                letterSpacing: "0.3px"
+              {/* FILA 2: EDAD + MESES + SEXO + ALERGIAS */}
+              <div style={{
+                display: "flex",
+                border: "1px solid #000",
+                borderBottom: "none"
               }}>
-                RECETA MÉDICA
+                <div style={{
+                  width: "75px",
+                  borderRight: "1px solid #000",
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
+                }}>
+                  <b>EDAD:</b> {calcAgeFromBirthdate(patient.birthdate) || patient.age || "-"} a
+                </div>
+                <div style={{
+                  width: "65px",
+                  borderRight: "1px solid #000",
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
+                }}>
+                  <b>MESES:</b> {(() => {
+                    if (!patient.birthdate) return "-";
+                    const b = new Date(patient.birthdate);
+                    if (isNaN(b.getTime())) return "-";
+                    const today = new Date();
+                    let months = today.getMonth() - b.getMonth();
+                    if (months < 0) months += 12;
+                    return months;
+                  })()}
+                </div>
+                <div style={{
+                  width: "75px",
+                  borderRight: "1px solid #000",
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
+                }}>
+                  <b>SEXO:</b> M{patient.sex === "M" ? "☑" : "☐"} F{patient.sex === "F" ? "☑" : "☐"}
+                </div>
+                <div style={{
+                  flex: 1,
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
+                }}>
+                  <b>ALÉRGICO:</b> {cleanAllergiesData(patient.allergies) || "Ninguno"}
+                </div>
               </div>
 
-              {/* INFO DEL PACIENTE - MEJORADA */}
-              <div className="patient-info" style={{
-                fontSize: 10,
-                lineHeight: 1.45,
-                marginBottom: 10
+              {/* DIAGNÓSTICO */}
+              <div style={{
+                display: "flex",
+                border: "1px solid #000",
+                borderBottom: "none"
               }}>
-                <div><b>Paciente:</b> {patient.name}</div>
-                <div><b>Historia clínica N°:</b> {patient.id} &nbsp;&nbsp; <b>CI:</b> {patient.cedula || "-"}</div>
-                <div><b>Edad:</b> {ageLabel} &nbsp;&nbsp; <b>Sexo:</b> {sex} &nbsp;&nbsp; <b>Tel:</b> {patient.phone || CLINIC_PHONE}</div>
-                <div><b>Antecedente alérgico:</b> {allergies}</div>
-                <div><b>Fecha de atención:</b> {fmtDateShort(rxDateISO)} &nbsp;&nbsp; <b>Diagnóstico (CIE10):</b> {diag}</div>
+                <div style={{
+                  flex: 1,
+                  borderRight: "1px solid #000",
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
+                }}>
+                  <b>DIAGNÓSTICO:</b> {diag}
+                </div>
+                <div style={{
+                  width: "130px",
+                  padding: "2px 5px",
+                  fontSize: "8.5px"
+                }}>
+                  <b>CIE10:</b> {Array.isArray(visit.diagnoses) && visit.diagnoses.length > 0
+                    ? visit.diagnoses.map(d => d.cie10_code).join(", ")
+                    : "-"}
+                </div>
               </div>
 
-              {/* TABLA DE MEDICAMENTOS */}
-              <table style={{
-                width: "100%",
-                borderCollapse: "collapse",
-                margin: "6px 0",
-                fontSize: 9
+              {/* TABLA MEDICAMENTOS */}
+              <div style={{
+                position: "relative",
+                border: "1px solid #000",
+                minHeight: "170px"
               }}>
-                <thead>
-                  <tr>
-                    <th style={{
-                      width: "40%",
-                      border: "1px solid #ddd",
-                      padding: 6,
-                      textAlign: "left",
-                      background: "#f1f3f5",
-                      fontWeight: 600,
-                      fontSize: 9
-                    }}>
-                      Medicamento
-                    </th>
-                    <th style={{
-                      border: "1px solid #ddd",
-                      padding: 6,
-                      textAlign: "left",
-                      background: "#f1f3f5",
-                      fontWeight: 600,
-                      fontSize: 9
-                    }}>
-                      Indicaciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(items || [])
-                    .filter((x) => (x.med || "").trim() && (x.instructions || "").trim())
-                    .map((x, idx) => (
-                      <tr key={x.id ?? idx}>
-                        <td style={{
-                          border: "1px solid #ddd",
-                          padding: 6,
-                          verticalAlign: "top",
-                          fontSize: "8.5px",
-                          lineHeight: 1.35
+                {/* Marca de agua */}
+                <div style={{
+                  position: "absolute",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  opacity: 0.22,
+                  zIndex: 0,
+                  pointerEvents: "none"
+                }}>
+                  <img 
+                    src="/logo-watermark.png" 
+                    alt="Watermark"
+                    style={{
+                      width: "240px",
+                      height: "auto",
+                      objectFit: "contain"
+                    }}
+                  />
+                </div>
+
+                <table style={{
+                  width: "100%",
+                  borderCollapse: "collapse",
+                  position: "relative",
+                  zIndex: 1
+                }}>
+                  <thead>
+                    <tr>
+                      <th style={{
+                        border: "1px solid #000",
+                        borderLeft: "none",
+                        borderTop: "none",
+                        padding: "2px 5px",
+                        fontSize: "8px",
+                        fontWeight: 700,
+                        background: "#f5f5f5",
+                        textAlign: "left",
+                        width: "50%"
+                      }}>
+                        MEDICAMENTO (Dosis, concentración, forma farmacéutica)
+                      </th>
+                      <th style={{
+                        border: "1px solid #000",
+                        borderRight: "none",
+                        borderTop: "none",
+                        padding: "2px 5px",
+                        fontSize: "8px",
+                        fontWeight: 700,
+                        background: "#f5f5f5",
+                        textAlign: "left",
+                        width: "50%"
+                      }}>
+                        INDICACIONES
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(items || [])
+                      .filter((x) => (x.med || "").trim() && (x.instructions || "").trim())
+                      .map((x, idx) => (
+                        <tr key={x.id ?? idx}>
+                          <td style={{
+                            border: "1px solid #000",
+                            borderLeft: "none",
+                            padding: "3px 5px",
+                            fontSize: "9px",
+                            fontWeight: 600,
+                            verticalAlign: "top",
+                            lineHeight: 1.25
+                          }}>
+                            {idx + 1}. {x.med}
+                          </td>
+                          <td style={{
+                            border: "1px solid #000",
+                            borderRight: "none",
+                            padding: "3px 5px",
+                            fontSize: "8.5px",
+                            verticalAlign: "top",
+                            lineHeight: 1.25,
+                            whiteSpace: "pre-wrap"
+                          }}>
+                            {x.instructions}
+                          </td>
+                        </tr>
+                      ))}
+                    
+                    {items.filter(x => x.med?.trim() && x.instructions?.trim()).length === 0 && (
+                      <tr>
+                        <td colSpan="2" style={{
+                          border: "none",
+                          padding: "35px 8px",
+                          textAlign: "center",
+                          fontSize: "9px",
+                          opacity: 0.5
                         }}>
-                          {x.med}
-                        </td>
-                        <td style={{
-                          border: "1px solid #ddd",
-                          padding: 6,
-                          verticalAlign: "top",
-                          fontSize: "8.5px",
-                          lineHeight: 1.35,
-                          whiteSpace: "pre-wrap"
-                        }}>
-                          {x.instructions}
+                          No hay medicamentos agregados
                         </td>
                       </tr>
-                    ))}
+                    )}
+                  </tbody>
+                </table>
+              </div>
 
-                  {items.filter((x) => (x.med || "").trim() && (x.instructions || "").trim()).length === 0 && (
-                    <tr>
-                      <td 
-                        colSpan={2} 
-                        style={{
-                          border: "1px solid #ddd",
-                          padding: 6,
-                          textAlign: "center",
-                          opacity: 0.7,
-                          fontSize: "8.5px"
-                        }}
-                      >
-                        Aún no hay medicamentos válidos.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-
-             {/* NOTAS ADICIONALES */}
-              {rxNotes?.trim() ? (
-                <div className="notes-box" style={{
-                  marginTop: 8,
-                  padding: 6,
+              {/* NOTAS */}
+              {rxNotes?.trim() && (
+                <div style={{
+                  border: "1px solid #000",
+                  borderTop: "none",
+                  padding: "3px 5px",
+                  fontSize: "8px",
                   background: "#fffbf0",
-                  borderLeft: "2px solid #f39c12",
-                  fontSize: "8.5px",
-                  lineHeight: 1.35
+                  lineHeight: 1.25
                 }}>
-                  <b style={{ color: "#e67e22" }}>Notas:</b> {rxNotes}
+                  <b>NOTAS:</b> {rxNotes}
                 </div>
-              ) : null}
+              )}
 
-              {/* FIRMA DEL DOCTOR */}
+              {/* PRESCRIPTOR */}
               <div style={{
-                marginTop: 14,
-                textAlign: "center",
-                fontSize: "9px",
-                lineHeight: 1.4
+                display: "flex",
+                border: "1px solid #000",
+                borderTop: rxNotes?.trim() ? "1px solid #000" : "none",
+                marginTop: rxNotes?.trim() ? 3 : 0,
+                minHeight: "42px"
               }}>
-                <div style={{ marginBottom: 6 }}>Atentamente,</div>
-                <div style={{ 
-                  borderTop: "1px solid #333", 
-                  width: "200px", 
-                  margin: "20px auto 6px",
-                  paddingTop: 4
-                }}></div>
-                <div style={{ fontWeight: 700, fontSize: "10px" }}>{doctor.fullName}</div>
-                <div style={{ fontWeight: 600 }}>{doctor.specialty}</div>
-                <div>CÉDULA: {doctor.cedula}</div>
-                <div>CELULAR: {doctor.phone}</div>
-                <div>CORREO: {doctor.email}</div>
-                <div style={{ marginTop: 4 }}>Dirección: {doctor.address}</div>
+                <div style={{
+                  flex: 1,
+                  borderRight: "1px solid #000",
+                  padding: "3px 5px",
+                  fontSize: "8px"
+                }}>
+                  <b>PRESCRIPTOR:</b> {doctor.fullName}<br/>
+                  <span style={{ fontSize: "7.5px" }}>
+                    CÉDULA: {doctor.cedula} | REG. MÉDICO: {doctor.regMedico}
+                  </span>
+                </div>
+                <div style={{
+                  width: "150px",
+                  padding: "3px 5px",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "center"
+                }}>
+                  <div style={{ 
+                    borderTop: "1px solid #333",
+                    width: "120px",
+                    marginTop: 12,
+                    paddingTop: 2,
+                    textAlign: "center",
+                    fontSize: "7.5px",
+                    fontWeight: 600
+                  }}>
+                    FIRMA Y SELLO
+                  </div>
+                </div>
               </div>
             </div>
           </div>
