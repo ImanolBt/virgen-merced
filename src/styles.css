@@ -448,6 +448,8 @@ button{
   z-index: 9999;
 }
 
+/* BORRAR O COMENTAR ESTO: */
+/*
 .mm-modal{
   width: min(980px, 100%);
   background: #fff;
@@ -455,6 +457,7 @@ button{
   box-shadow: 0 20px 60px rgba(0,0,0,.25);
   overflow: hidden;
 }
+*/
 
 .mm-modalHead{
   padding: 14px 16px;
@@ -526,4 +529,90 @@ button{
 
 .mm-search-input::placeholder {
   color: #7c9baf;
+}
+/* =========================
+   Modal Editar Paciente
+   ========================= */
+.mm-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.mm-modalContent {
+  background: white;
+  border-radius: 18px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+}
+
+.mm-modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background: linear-gradient(90deg, rgba(93, 173, 226, 0.16), rgba(72, 201, 176, 0.10));
+}
+
+.mm-modalTitle {
+  font-size: 20px;
+  font-weight: 900;
+  margin: 0;
+  color: #0f172a;
+}
+
+.mm-modalClose {
+  background: none;
+  border: none;
+  font-size: 32px;
+  cursor: pointer;
+  color: #666;
+  padding: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  transition: all 0.2s;
+}
+
+.mm-modalClose:hover {
+  color: #000;
+  transform: scale(1.1);
+}
+
+.mm-modalBody {
+  padding: 20px;
+  max-height: calc(90vh - 140px);
+  overflow-y: auto;
+}
+
+.mm-modalFooter {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 20px;
+  border-top: 1px solid #e0e0e0;
+  background: #f9fafb;
+}
+
+.mm-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: #374151;
 }

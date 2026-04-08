@@ -3,25 +3,29 @@ import { supabase } from "../lib/supabase";
 
 function cleanAllergiesData(value) {
   if (!value) return "";
-  let cleaned = value;
-  if (Array.isArray(value)) {
-    cleaned = value.join(", ");
+  
+  // Si ya es string, limpiar directamente
+  if (typeof value === 'string') {
+    return value
+      .replace(/^\["|"\]$/g, '')     // Quita [" al inicio y "] al final
+      .replace(/","/g, ', ')          // Reemplaza "," por coma y espacio
+      .replace(/\\n/g, '\n')          // Reemplaza \n escapado por salto de línea real
+      .replace(/\\\\/g, '')           // Quita backslashes escapados
+      .trim();
   }
-  cleaned = String(cleaned);
-  cleaned = cleaned
-    .replace(/\\\\/g, '')
-    .replace(/\\"/g, '"')
-    .replace(/\\n/g, '\n')
-    .replace(/\["/g, '')
-    .replace(/"]/g, '')
-    .replace(/^\[/g, '')
-    .replace(/]$/g, '')
-    .replace(/^"/g, '')
-    .replace(/"$/g, '')
-    .replace(/","/g, ', ')
+  
+  // Si es array, unir con comas
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+  
+  // Si es otro tipo, convertir a string y limpiar
+  return String(value)
+    .replace(/^\["?|"?\]$/g, '')
     .replace(/"\s*,\s*"/g, ', ')
+    .replace(/\\n/g, '\n')
+    .replace(/\\/g, '')
     .trim();
-  return cleaned;
 }
 
 export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }) {
@@ -38,8 +42,9 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
   const [bloodType, setBloodType] = useState("");
   const [allergies, setAllergies] = useState("");
   const [medicalHistory, setMedicalHistory] = useState("");
-  const [emergencyContact, setEmergencyContact] = useState("");
-  const [emergencyPhone, setEmergencyPhone] = useState("");
+  // Eliminadas las variables de contacto de emergencia que no existen en la BD
+  // const [emergencyContact, setEmergencyContact] = useState("");
+  // const [emergencyPhone, setEmergencyPhone] = useState("");
 
   useEffect(() => {
     if (isOpen && patient) {
@@ -54,39 +59,47 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
       setBloodType(patient.blood_type || "");
       setAllergies(cleanAllergiesData(patient.allergies));
       setMedicalHistory(patient.medical_history || "");
-      setEmergencyContact(patient.emergency_contact || "");
-      setEmergencyPhone(patient.emergency_phone || "");
-    } else if (!isOpen) {
-      setName("");
-      setCedula("");
-      setBirthdate("");
-      setAge("");
-      setSex("");
-      setPhone("");
-      setEmail("");
-      setAddress("");
-      setBloodType("");
-      setAllergies("");
-      setMedicalHistory("");
-      setEmergencyContact("");
-      setEmergencyPhone("");
+      // Eliminadas las líneas de emergency_contact y emergency_phone
+      // setEmergencyContact(patient.emergency_contact || "");
+      // setEmergencyPhone(patient.emergency_phone || "");
     }
   }, [isOpen, patient]);
 
+  // Calcular edad automáticamente desde fecha de nacimiento
+  useEffect(() => {
+    if (birthdate) {
+      const birthDate = new Date(birthdate);
+      const today = new Date();
+      let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+      const monthDiff = today.getMonth() - birthDate.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+        calculatedAge--;
+      }
+      if (calculatedAge >= 0 && calculatedAge <= 150) {
+        setAge(String(calculatedAge));
+      }
+    }
+  }, [birthdate]);
+
   async function handleSubmit(e) {
     e.preventDefault();
+    
     if (!name.trim()) {
       alert("El nombre es obligatorio");
+      return;
+    }
+
+    // Validar email si se proporciona
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      alert("El email no es válido");
       return;
     }
 
     setLoading(true);
 
     try {
-      // PROTEGER CAMPOS NUMÉRICOS CONTRA OVERFLOW
       const safeAge = age?.trim() ? parseInt(age) : null;
       
-      // Validar que age sea un número válido y no exceda límites
       if (safeAge !== null && (isNaN(safeAge) || safeAge < 0 || safeAge > 150)) {
         alert("La edad debe ser un número válido entre 0 y 150");
         setLoading(false);
@@ -105,8 +118,9 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
         blood_type: bloodType || null,
         allergies: allergies?.trim() || null,
         medical_history: medicalHistory?.trim() || null,
-        emergency_contact: emergencyContact?.trim() || null,
-        emergency_phone: emergencyPhone?.trim() || null,
+        // Eliminadas las columnas que no existen
+        // emergency_contact: emergencyContact?.trim() || null,
+        // emergency_phone: emergencyPhone?.trim() || null,
       };
 
       const { error } = await supabase
@@ -114,7 +128,14 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
         .update(updateData)
         .eq("id", patient.id);
 
-      if (error) throw error;
+      if (error) {
+        if (error.code === '23505') {
+          alert("Ya existe un paciente con esta cédula");
+        } else {
+          throw error;
+        }
+        return;
+      }
 
       alert("Paciente actualizado correctamente");
       if (onSuccess) onSuccess();
@@ -130,55 +151,124 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
   if (!isOpen) return null;
 
   return (
-    <div className="mm-modal" onClick={onClose}>
-      <div className="mm-modalContent" onClick={(e) => e.stopPropagation()}>
-        <div className="mm-modalHeader">
-          <h2 className="mm-modalTitle">Editar Paciente</h2>
-          <button className="mm-modalClose" onClick={onClose}>×</button>
+    <div 
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: "rgba(0, 0, 0, 0.5)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 9999,
+        padding: "20px"
+      }}
+      onClick={onClose}
+    >
+      <div 
+        style={{
+          background: "white",
+          borderRadius: "18px",
+          maxWidth: "900px",
+          width: "100%",
+          maxHeight: "90vh",
+          overflow: "hidden",
+          boxShadow: "0 24px 70px rgba(0, 0, 0, 0.3)"
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          padding: "20px",
+          borderBottom: "1px solid #e0e0e0",
+          background: "linear-gradient(90deg, rgba(93, 173, 226, 0.16), rgba(72, 201, 176, 0.10))"
+        }}>
+          <h2 style={{ fontSize: "20px", fontWeight: 900, margin: 0, color: "#0f172a" }}>
+            Editar Paciente
+          </h2>
+          <button 
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: "32px",
+              cursor: "pointer",
+              color: "#666",
+              padding: 0,
+              width: "36px",
+              height: "36px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              lineHeight: 1
+            }}
+            aria-label="Cerrar modal"
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit}>
-          <div className="mm-modalBody">
+          <div style={{ padding: "20px", maxHeight: "calc(90vh - 140px)", overflowY: "auto" }}>
             <div style={{ display: "grid", gap: 16 }}>
               {/* INFORMACIÓN BÁSICA */}
               <div>
                 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Información Básica</h3>
                 <div style={{ display: "grid", gap: 12 }}>
                   <div>
-                    <label className="mm-label">Nombre completo *</label>
+                    <label htmlFor="patient-name" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                      Nombre completo *
+                    </label>
                     <input
+                      id="patient-name"
                       className="mm-input"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
+                      disabled={loading}
                       required
                     />
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div>
-                      <label className="mm-label">Cédula</label>
+                      <label htmlFor="patient-cedula" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                        Cédula
+                      </label>
                       <input
+                        id="patient-cedula"
                         className="mm-input"
                         value={cedula}
                         onChange={(e) => setCedula(e.target.value)}
                         maxLength="15"
+                        disabled={loading}
                       />
                     </div>
                     <div>
-                      <label className="mm-label">Fecha de nacimiento</label>
+                      <label htmlFor="patient-birthdate" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                        Fecha de nacimiento
+                      </label>
                       <input
+                        id="patient-birthdate"
                         className="mm-input"
                         type="date"
                         value={birthdate}
                         onChange={(e) => setBirthdate(e.target.value)}
+                        disabled={loading}
                       />
                     </div>
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div>
-                      <label className="mm-label">Edad</label>
+                      <label htmlFor="patient-age" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                        Edad
+                      </label>
                       <input
+                        id="patient-age"
                         className="mm-input"
                         type="number"
                         min="0"
@@ -186,14 +276,19 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
                         value={age}
                         onChange={(e) => setAge(e.target.value)}
                         placeholder="Años"
+                        disabled={loading}
                       />
                     </div>
                     <div>
-                      <label className="mm-label">Sexo</label>
+                      <label htmlFor="patient-sex" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                        Sexo
+                      </label>
                       <select
+                        id="patient-sex"
                         className="mm-input"
                         value={sex}
                         onChange={(e) => setSex(e.target.value)}
+                        disabled={loading}
                       >
                         <option value="">Seleccionar...</option>
                         <option value="M">Masculino</option>
@@ -203,11 +298,15 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
                   </div>
 
                   <div>
-                    <label className="mm-label">Tipo de sangre</label>
+                    <label htmlFor="patient-bloodtype" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                      Tipo de sangre
+                    </label>
                     <select
+                      id="patient-bloodtype"
                       className="mm-input"
                       value={bloodType}
                       onChange={(e) => setBloodType(e.target.value)}
+                      disabled={loading}
                     >
                       <option value="">Seleccionar...</option>
                       <option value="A+">A+</option>
@@ -229,31 +328,43 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
                 <div style={{ display: "grid", gap: 12 }}>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <div>
-                      <label className="mm-label">Teléfono</label>
+                      <label htmlFor="patient-phone" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                        Teléfono
+                      </label>
                       <input
+                        id="patient-phone"
                         className="mm-input"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         maxLength="20"
+                        disabled={loading}
                       />
                     </div>
                     <div>
-                      <label className="mm-label">Email</label>
+                      <label htmlFor="patient-email" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                        Email
+                      </label>
                       <input
+                        id="patient-email"
                         className="mm-input"
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
+                        disabled={loading}
                       />
                     </div>
                   </div>
 
                   <div>
-                    <label className="mm-label">Dirección</label>
+                    <label htmlFor="patient-address" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                      Dirección
+                    </label>
                     <input
+                      id="patient-address"
                       className="mm-input"
                       value={address}
                       onChange={(e) => setAddress(e.target.value)}
+                      disabled={loading}
                     />
                   </div>
                 </div>
@@ -264,56 +375,49 @@ export default function PatientEditModal({ isOpen, onClose, patient, onSuccess }
                 <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Información Médica</h3>
                 <div style={{ display: "grid", gap: 12 }}>
                   <div>
-                    <label className="mm-label">Alergias</label>
+                    <label htmlFor="patient-allergies" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                      Alergias
+                    </label>
                     <textarea
+                      id="patient-allergies"
                       className="mm-input"
                       value={allergies}
                       onChange={(e) => setAllergies(e.target.value)}
                       rows={3}
                       placeholder="Ej: Penicilina, Polen, Mariscos"
+                      disabled={loading}
                     />
                   </div>
 
                   <div>
-                    <label className="mm-label">Historial médico</label>
+                    <label htmlFor="patient-medical-history" style={{ display: "block", fontSize: 13, fontWeight: 700, marginBottom: 6, color: "#374151" }}>
+                      Historial médico
+                    </label>
                     <textarea
+                      id="patient-medical-history"
                       className="mm-input"
                       value={medicalHistory}
                       onChange={(e) => setMedicalHistory(e.target.value)}
                       rows={3}
                       placeholder="Enfermedades previas, cirugías, medicación actual..."
+                      disabled={loading}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* CONTACTO DE EMERGENCIA */}
-              <div>
-                <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Contacto de Emergencia</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                  <div>
-                    <label className="mm-label">Nombre</label>
-                    <input
-                      className="mm-input"
-                      value={emergencyContact}
-                      onChange={(e) => setEmergencyContact(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="mm-label">Teléfono</label>
-                    <input
-                      className="mm-input"
-                      value={emergencyPhone}
-                      onChange={(e) => setEmergencyPhone(e.target.value)}
-                      maxLength="20"
-                    />
-                  </div>
-                </div>
-              </div>
+              {/* La sección de Contacto de Emergencia ha sido eliminada porque esas columnas no existen en la BD */}
             </div>
           </div>
 
-          <div className="mm-modalFooter">
+          <div style={{
+            display: "flex",
+            gap: 12,
+            justifyContent: "flex-end",
+            padding: "20px",
+            borderTop: "1px solid #e0e0e0",
+            background: "#f9fafb"
+          }}>
             <button
               type="button"
               className="mm-btn mm-btn--ghost"

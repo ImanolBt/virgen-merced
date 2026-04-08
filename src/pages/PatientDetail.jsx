@@ -121,13 +121,14 @@ export default function PatientDetail() {
   // ===== Modal editar paciente =====
   const [editOpen, setEditOpen] = useState(false);
 
-  // 📸 NUEVO: Modal para ver imagen
+  // 📸 Modal para ver imagen
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [imageModalUrl, setImageModalUrl] = useState(null);
 
   function openEdit() {
     setEditOpen(true);
   }
+  
   function closeEdit() {
     setEditOpen(false);
   }
@@ -148,36 +149,36 @@ export default function PatientDetail() {
     setLoading(true);
     setLoadingVisits(true);
 
-    const p = await supabase.from("patients").select("*").eq("id", patientId).single();
-    if (p.error) {
-      console.error(p.error);
-      alert("No se pudo cargar el paciente");
+    try {
+      const { data: patientData, error: patientError } = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", patientId)
+        .single();
+
+      if (patientError) throw patientError;
+      setPatient(patientData);
+
+      const { data: visitsData, error: visitsError } = await supabase
+        .from("medical_visits")
+        .select(`
+          id, visit_date, reason, notes, created_at, consultation_image_url,
+          bp_sys, bp_dia, hr, spo2, temp_c, weight_kg, height_cm, bmi, pediatric_percentile,
+          medical_visit_diagnoses:medical_visit_diagnoses ( cie10_code, cie10_name )
+        `)
+        .eq("patient_id", patientId)
+        .order("visit_date", { ascending: false });
+
+      if (visitsError) throw visitsError;
+      setVisits(visitsData || []);
+      
+    } catch (error) {
+      console.error("Error loading data:", error);
+      alert(error.message || "Error al cargar los datos");
+    } finally {
       setLoading(false);
       setLoadingVisits(false);
-      return;
     }
-    setPatient(p.data);
-
-    // 📸 MODIFICADO: Incluir consultation_image_url en la query
-    const v = await supabase
-      .from("medical_visits")
-      .select(`
-        id, visit_date, reason, notes, created_at, consultation_image_url,
-        bp_sys, bp_dia, hr, spo2, temp_c, weight_kg, height_cm, bmi, pediatric_percentile,
-        medical_visit_diagnoses:medical_visit_diagnoses ( cie10_code, cie10_name )
-      `)
-      .eq("patient_id", patientId)
-      .order("visit_date", { ascending: false });
-
-    if (v.error) {
-      console.error(v.error);
-      setVisits([]);
-    } else {
-      setVisits(v.data || []);
-    }
-
-    setLoading(false);
-    setLoadingVisits(false);
   }
 
   useEffect(() => {
@@ -228,14 +229,14 @@ export default function PatientDetail() {
         </div>
 
         <div className="mm-itemMeta" style={{ padding: 14 }}>
-          <div><b>Sexo:</b> {patient.sex === "M" ? "Masculino" : "Femenino"}</div>
+          <div><b>Sexo:</b> {patient.sex === "M" ? "Masculino" : patient.sex === "F" ? "Femenino" : "-"}</div>
           <div><b>Nacimiento:</b> {patient.birthdate || "-"}</div>
           <div><b>Edad:</b> {ageLabelFromBirthdate(patient.birthdate)}</div>
           <div>
             <b>Alergias:</b>{" "}
             {Array.isArray(patient.allergies) ? patient.allergies.join(", ") : patient.allergies || "-"}
           </div>
-          <div><b>Notas:</b> {patient.notes || "-"}</div>
+          <div><b>Notas médicas:</b> {patient.medical_history || "-"}</div>
         </div>
       </div>
 
@@ -272,7 +273,10 @@ export default function PatientDetail() {
                   >
                     <div className="mm-itemTop" style={{ alignItems: "flex-start" }}>
                       <div style={{ display: "grid", gap: 2 }}>
-                        <div className="mm-itemName">{v.reason}</div>
+                        <div className="mm-itemName">
+                          {v.reason || "Consulta médica"}
+                          {v.consultation_image_url && <span style={{ marginLeft: 8 }}>📷</span>}
+                        </div>
                         <div style={{ fontSize: 13, opacity: 0.85 }}>
                           {new Date(v.visit_date).toLocaleString("es-EC")}
                         </div>
@@ -289,7 +293,6 @@ export default function PatientDetail() {
                           {status.emoji} {status.text}
                         </div>
 
-                        {/* 📸 NUEVO: Botón ver imagen */}
                         {v.consultation_image_url && (
                           <button
                             type="button"
@@ -336,15 +339,17 @@ export default function PatientDetail() {
         </div>
       </div>
 
-      {/* ===== Modal editar paciente ===== */}
-      <PatientEditModal
-        open={editOpen}
-        patient={patient}
-        onClose={closeEdit}
-        onSaved={loadAll}
-      />
+      {/* ===== Modal editar paciente - CORREGIDO ===== */}
+      {patient && (
+        <PatientEditModal
+          isOpen={editOpen}
+          patient={patient}
+          onClose={closeEdit}
+          onSuccess={loadAll}
+        />
+      )}
 
-      {/* 📸 NUEVO: Modal para ver imagen CON ZOOM */}
+      {/* Modal para ver imagen con zoom */}
       {imageModalOpen && imageModalUrl && (
         <ImageZoomModal 
           imageUrl={imageModalUrl} 
