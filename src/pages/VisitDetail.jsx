@@ -36,13 +36,6 @@ function toNum(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-function calcisoDateOnly(dateISO) {
-  if (!dateISO) return "";
-  const d = new Date(dateISO);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toISOString().slice(0, 10);
-}
-
 function toLocalDatetimeValue(dateISO) {
   if (!dateISO) return "";
   const d = new Date(dateISO);
@@ -77,6 +70,55 @@ function calcBMI(weightKg, heightCm) {
   const m = h / 100;
   const bmi = w / (m * m);
   return Number.isFinite(bmi) ? bmi : null;
+}
+
+// 🆕 Función para clasificar IMC según OMS
+function classifyBMI(bmi) {
+  if (!bmi || !Number.isFinite(bmi)) return null;
+
+  if (bmi < 18) {
+    return {
+      category: "Bajo peso",
+      color: "#E3F2FD",
+      textColor: "#1565C0",
+      emoji: "⬇️"
+    };
+  } else if (bmi >= 18 && bmi < 25) {
+    return {
+      category: "Peso normal",
+      color: "#C8E6C9",
+      textColor: "#2E7D32",
+      emoji: "✅"
+    };
+  } else if (bmi >= 25 && bmi < 30) {
+    return {
+      category: "Exceso de peso",
+      color: "#FFE0B2",
+      textColor: "#E65100",
+      emoji: "⚠️"
+    };
+  } else if (bmi >= 30 && bmi < 35) {
+    return {
+      category: "Obesidad Grado I",
+      color: "#FFE082",
+      textColor: "#F57C00",
+      emoji: "⚠️"
+    };
+  } else if (bmi >= 35 && bmi < 40) {
+    return {
+      category: "Obesidad Grado II",
+      color: "#FFAB91",
+      textColor: "#D84315",
+      emoji: "🔴"
+    };
+  } else {
+    return {
+      category: "Obesidad Grado III",
+      color: "#EF9A9A",
+      textColor: "#C62828",
+      emoji: "🔴"
+    };
+  }
 }
 
 function classifyVitals(v) {
@@ -322,164 +364,163 @@ export default function VisitDetail() {
     ).join("; ");
   }
 
- async function loadAll() {
-  if (!visitId) return;
-  setLoading(true);
+  async function loadAll() {
+    if (!visitId) return;
+    setLoading(true);
 
-  try {
-    console.log("🔵 1. Cargando visita...");
-    const v = await supabase
-      .from("medical_visits")
-      .select(
-        "id, patient_id, visit_date, reason, cie10_code, cie10_name, notes, created_at, user_id, bp_sys, bp_dia, hr, spo2, temp_c, weight_kg, height_cm, bmi, pediatric_percentile"
-      )
-      .eq("id", visitId)
-      .single();
+    try {
+      console.log("🔵 1. Cargando visita...");
+      const v = await supabase
+        .from("medical_visits")
+        .select(
+          "id, patient_id, visit_date, reason, cie10_code, cie10_name, notes, created_at, user_id, bp_sys, bp_dia, hr, spo2, temp_c, weight_kg, height_cm, bmi, pediatric_percentile"
+        )
+        .eq("id", visitId)
+        .single();
 
-    if (v.error) throw new Error(`Error cargando consulta: ${v.error.message}`);
-    console.log("✅ Visita cargada:", v.data);
+      if (v.error) throw new Error(`Error cargando consulta: ${v.error.message}`);
+      console.log("✅ Visita cargada:", v.data);
 
-    console.log("🔵 2. Cargando paciente...");
-    const p = await supabase
-      .from("patients")
-      .select("*")
-      .eq("id", v.data.patient_id)
-      .single();
+      console.log("🔵 2. Cargando paciente...");
+      const p = await supabase
+        .from("patients")
+        .select("*")
+        .eq("id", v.data.patient_id)
+        .single();
 
-    if (p.error) throw new Error(`Error cargando paciente: ${p.error.message}`);
-    console.log("✅ Paciente cargado:", p.data);
+      if (p.error) throw new Error(`Error cargando paciente: ${p.error.message}`);
+      console.log("✅ Paciente cargado:", p.data);
 
-    setVisit(v.data);
-    setPatient(p.data);
+      setVisit(v.data);
+      setPatient(p.data);
 
-    console.log("🔵 3. Seteando estados de edición...");
-    setVisitDateEdit(toLocalDatetimeValue(v.data.visit_date));
-    setReasonEdit(v.data.reason ?? "");
-    setVisitNotesEdit(v.data.notes ?? "");
-    console.log("✅ Estados seteados - notes:", v.data.notes);
+      console.log("🔵 3. Seteando estados de edición...");
+      setVisitDateEdit(toLocalDatetimeValue(v.data.visit_date));
+      setReasonEdit(v.data.reason ?? "");
+      setVisitNotesEdit(v.data.notes ?? "");
+      console.log("✅ Estados seteados - notes:", v.data.notes);
 
-    setBpSys(v.data.bp_sys ?? "");
-    setBpDia(v.data.bp_dia ?? "");
-    setHr(v.data.hr ?? "");
-    setSpo2(v.data.spo2 ?? "");
-    setTempC(v.data.temp_c ?? "");
-    setWeightKg(v.data.weight_kg ?? "");
-    setHeightCm(v.data.height_cm ?? "");
-    setPediatricPercentile(v.data.pediatric_percentile ?? "");
+      setBpSys(v.data.bp_sys ?? "");
+      setBpDia(v.data.bp_dia ?? "");
+      setHr(v.data.hr ?? "");
+      setSpo2(v.data.spo2 ?? "");
+      setTempC(v.data.temp_c ?? "");
+      setWeightKg(v.data.weight_kg ?? "");
+      setHeightCm(v.data.height_cm ?? "");
+      setPediatricPercentile(v.data.pediatric_percentile ?? "");
 
-    console.log("🔵 4. Cargando diagnósticos...");
-    const d = await supabase
-      .from("medical_visit_diagnoses")
-      .select("cie10_code, cie10_name")
-      .eq("visit_id", visitId)
-      .order("id", { ascending: true });
+      console.log("🔵 4. Cargando diagnósticos...");
+      const d = await supabase
+        .from("medical_visit_diagnoses")
+        .select("cie10_code, cie10_name")
+        .eq("visit_id", visitId)
+        .order("id", { ascending: true });
 
-    if (d.error) {
-      console.error("⚠️ Error cargando diagnósticos:", d.error);
-      setDiags([]);
-    } else {
-      console.log("✅ Diagnósticos cargados:", d.data);
-      setDiags((d.data || []).map((x) => ({ code: x.cie10_code, name: x.cie10_name })));
+      if (d.error) {
+        console.error("⚠️ Error cargando diagnósticos:", d.error);
+        setDiags([]);
+      } else {
+        console.log("✅ Diagnósticos cargados:", d.data);
+        setDiags((d.data || []).map((x) => ({ code: x.cie10_code, name: x.cie10_name })));
+      }
+
+      console.log("🔵 5. Cargando certificado...");
+      const c = await supabase
+        .from("certificates")
+        .select("*")
+        .eq("visit_id", visitId)
+        .maybeSingle();
+
+      if (c.error && c.error.code !== 'PGRST116') {
+        console.error("⚠️ Error cargando certificado:", c.error);
+      } else if (c.data) {
+        console.log("✅ Certificado cargado:", c.data);
+        setCertId(c.data.id);
+        setCertDate(c.data.date || new Date().toISOString());
+        setRestFrom(c.data.rest_from ? String(c.data.rest_from) : "");
+        setRestTo(c.data.rest_to ? String(c.data.rest_to) : "");
+        setEntity(c.data.entity ?? "");
+        setPosition(c.data.position ?? "");
+        setAddress(c.data.address ?? "");
+        setEmail(c.data.email ?? "");
+        setContactPhone(c.data.contact_phone ?? "");
+        setIncludeNotes(!!c.data.include_notes);
+        setNotes(c.data.notes ?? "");
+      } else {
+        console.log("ℹ️ No hay certificado previo");
+        setCertId(null);
+        setCertDate(v.data.visit_date || new Date().toISOString());
+        const visitDay = v.data.visit_date ? new Date(v.data.visit_date).toISOString().slice(0, 10) : "";
+        setRestFrom(visitDay);
+        setRestTo("");
+        setEntity("");
+        setPosition("");
+        setAddress("");
+        setEmail("");
+        setContactPhone("");
+        setIncludeNotes(false);
+        setNotes("");
+      }
+
+      console.log("✅ loadAll() completado exitosamente");
+
+    } catch (error) {
+      console.error("❌ Error en loadAll:", error);
+      alert(error.message || "Error al cargar los datos");
+    } finally {
+      setLoading(false);
     }
-
-    console.log("🔵 5. Cargando certificado...");
-    const c = await supabase
-      .from("certificates")
-      .select("*")
-      .eq("visit_id", visitId)
-      .maybeSingle();
-
-    if (c.error && c.error.code !== 'PGRST116') {
-      console.error("⚠️ Error cargando certificado:", c.error);
-    } else if (c.data) {
-      console.log("✅ Certificado cargado:", c.data);
-      setCertId(c.data.id);
-      setCertDate(c.data.date || new Date().toISOString());
-      setRestFrom(c.data.rest_from ? String(c.data.rest_from) : "");
-      setRestTo(c.data.rest_to ? String(c.data.rest_to) : "");
-      setEntity(c.data.entity ?? "");
-      setPosition(c.data.position ?? "");
-      setAddress(c.data.address ?? "");
-      setEmail(c.data.email ?? "");
-      setContactPhone(c.data.contact_phone ?? "");
-      setIncludeNotes(!!c.data.include_notes);
-      setNotes(c.data.notes ?? "");
-    } else {
-      console.log("ℹ️ No hay certificado previo");
-      setCertId(null);
-      setCertDate(v.data.visit_date || new Date().toISOString());
-      const visitDay = v.data.visit_date ? new Date(v.data.visit_date).toISOString().slice(0, 10) : "";
-      setRestFrom(visitDay);
-      setRestTo("");
-      setEntity("");
-      setPosition("");
-      setAddress("");
-      setEmail("");
-      setContactPhone("");
-      setIncludeNotes(false);
-      setNotes("");
-    }
-
-    console.log("✅ loadAll() completado exitosamente");
-
-  } catch (error) {
-    console.error("❌ Error en loadAll:", error);
-    alert(error.message || "Error al cargar los datos");
-  } finally {
-    setLoading(false);
   }
-}
 
   useEffect(() => {
     loadAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visitId]);
 
- async function saveVisitEdits() {
-  if (!visit) return;
-  if (savingVisit) return;
+  async function saveVisitEdits() {
+    if (!visit) return;
+    if (savingVisit) return;
 
-  const nextVisitISO = fromLocalDatetimeValue(visitDateEdit);
-  if (!nextVisitISO) {
-    alert("Fecha de consulta inválida.");
-    return;
+    const nextVisitISO = fromLocalDatetimeValue(visitDateEdit);
+    if (!nextVisitISO) {
+      alert("Fecha de consulta inválida.");
+      return;
+    }
+    if (!reasonEdit.trim()) {
+      alert("El motivo no puede quedar vacío.");
+      return;
+    }
+
+    const payload = {
+      visit_date: nextVisitISO,
+      reason: reasonEdit.trim(),
+      notes: visitNotesEdit.trim() || null,
+    };
+
+    console.log("🔍 Guardando consulta con payload:", payload);
+    console.log("🔍 Visit ID:", visit.id);
+
+    setSavingVisit(true);
+    try {
+      const { data, error } = await supabase
+        .from("medical_visits")
+        .update(payload)
+        .eq("id", visit.id)
+        .select();
+
+      if (error) throw error;
+
+      console.log("✅ Respuesta de Supabase:", data);
+      alert("Consulta actualizada.");
+      setEditVisit(false);
+      loadAll();
+    } catch (error) {
+      console.error("❌ Error guardando:", error);
+      alert(error.message || "No se pudo guardar cambios de la consulta");
+    } finally {
+      setSavingVisit(false);
+    }
   }
-  if (!reasonEdit.trim()) {
-    alert("El motivo no puede quedar vacío.");
-    return;
-  }
-
-  const payload = {
-    visit_date: nextVisitISO,
-    reason: reasonEdit.trim(),
-    notes: visitNotesEdit.trim() || null,
-  };
-
-  // ✅ DEBUG: Ver qué se está enviando
-  console.log("🔍 Guardando consulta con payload:", payload);
-  console.log("🔍 Visit ID:", visit.id);
-
-  setSavingVisit(true);
-  try {
-    const { data, error } = await supabase
-      .from("medical_visits")
-      .update(payload)
-      .eq("id", visit.id)
-      .select(); // ✅ AGREGADO: para ver qué devuelve
-
-    if (error) throw error;
-
-    console.log("✅ Respuesta de Supabase:", data);
-    alert("Consulta actualizada.");
-    setEditVisit(false);
-    loadAll();
-  } catch (error) {
-    console.error("❌ Error guardando:", error);
-    alert(error.message || "No se pudo guardar cambios de la consulta");
-  } finally {
-    setSavingVisit(false);
-  }
-}
 
   function cancelVisitEdits() {
     if (!visit) return;
@@ -830,6 +871,8 @@ export default function VisitDetail() {
   const age = calcAge(patient.birthdate) ?? patient.age ?? null;
   const isChild = age !== null ? Number(age) < 10 : false;
   const bmiLive = isChild ? null : calcBMI(weightKg, heightCm);
+  const bmiClassification = bmiLive ? classifyBMI(bmiLive) : null;
+  
   const status = classifyVitals({
     bp_sys: bpSys,
     bp_dia: bpDia,
@@ -1030,6 +1073,39 @@ export default function VisitDetail() {
                 </div>
               </div>
 
+              {/* 🆕 CLASIFICACIÓN DE IMC CON COLORES */}
+              {!isChild && bmiLive !== null && bmiClassification && (
+                <div style={{
+                  background: bmiClassification.color,
+                  border: `2px solid ${bmiClassification.textColor}`,
+                  borderRadius: "8px",
+                  padding: "12px 16px",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "12px",
+                  marginTop: "4px"
+                }}>
+                  <div style={{ fontSize: "24px" }}>{bmiClassification.emoji}</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ 
+                      fontSize: "14px", 
+                      fontWeight: 700, 
+                      color: bmiClassification.textColor,
+                      marginBottom: "2px"
+                    }}>
+                      {bmiClassification.category}
+                    </div>
+                    <div style={{ 
+                      fontSize: "12px", 
+                      color: bmiClassification.textColor,
+                      opacity: 0.9
+                    }}>
+                      IMC: {bmiLive.toFixed(1)} kg/m²
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
                 <button className="mm-btn" type="button" onClick={saveVitals} disabled={savingVitals}>
                   Guardar signos vitales
@@ -1039,6 +1115,56 @@ export default function VisitDetail() {
                   {isChild
                     ? "Menores de 10: registra percentil OMS manual (P50, P85, etc.)."
                     : "Desde 10+: el sistema calcula IMC automáticamente con peso y talla."}
+                </div>
+              </div>
+
+              <div style={{
+                background: "#e3f2fd",
+                border: "1px solid #90caf9",
+                borderRadius: "6px",
+                padding: "10px 12px",
+                marginTop: "6px"
+              }}>
+                <div style={{ fontSize: "12px", fontWeight: 600, marginBottom: "8px", color: "#1565c0" }}>
+                  🧮 Calculadoras útiles:
+                </div>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                  <a
+                    href="https://hablandodeobesidad.com/camino-del-paciente/calculadora-de-imc/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-block",
+                      fontSize: "12px",
+                      padding: "6px 12px",
+                      background: "#fff",
+                      border: "1px solid #90caf9",
+                      borderRadius: "4px",
+                      textDecoration: "none",
+                      color: "#1976d2",
+                      cursor: "pointer"
+                    }}
+                  >
+                    📊 Calculadora IMC
+                  </a>
+                  <a
+                    href="https://www.ihan.es/calculadora-de-percentiles/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      display: "inline-block",
+                      fontSize: "12px",
+                      padding: "6px 12px",
+                      background: "#fff",
+                      border: "1px solid #90caf9",
+                      borderRadius: "4px",
+                      textDecoration: "none",
+                      color: "#1976d2",
+                      cursor: "pointer"
+                    }}
+                  >
+                    📈 Calculadora Percentiles
+                  </a>
                 </div>
               </div>
             </div>
