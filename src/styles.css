@@ -616,3 +616,65 @@ button{
   margin-bottom: 6px;
   color: #374151;
 }
+/* =========================
+   Fix CIE10 Modal Overflow
+   ========================= */
+.mm-modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 9999;
+  overflow-y: auto;
+}
+
+.mm-modal {
+  background: white;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.3);
+  margin: auto;
+}
+
+.mm-modalHead {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(90deg, rgba(93, 173, 226, 0.16), rgba(72, 201, 176, 0.10));
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+}
+
+.mm-modalBody {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.mm-modalFoot {
+  padding: 16px 20px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  flex-shrink: 0;
+  background: #f9fafb;
+}
+
+.mm-results {
+  margin-top: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  display: grid;
+  gap: 8px;
+}
