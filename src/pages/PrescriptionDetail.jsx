@@ -437,14 +437,14 @@ export default function PrescriptionDetail() {
                 alignItems: "center",
                 marginBottom: 3
               }}>
-                <div style={{ fontSize: "10px", color: "#666", fontWeight: 600 }}>
+                <div style={{ fontSize: "11px", color: "#666", fontWeight: 600 }}>
                   Fecha: {fmtDateShort(rxDateISO)}
                 </div>
-                <div style={{ fontSize: "11px", color: "#666" }}>
+                <div style={{ fontSize: "12px", color: "#666" }}>
                   Receta N° <span style={{ 
                     color: "#e74c3c", 
                     fontWeight: 700,
-                    fontSize: "14px",
+                    fontSize: "15px",
                     letterSpacing: "1px"
                   }}>
                     {String(visit.id).padStart(7, '0')}
@@ -484,14 +484,14 @@ export default function PrescriptionDetail() {
 
                 {/* Datos doctor */}
                 <div style={{ textAlign: "center", width: "100%" }}>
-                  <div style={{ fontSize: "12px", fontWeight: 700, marginBottom: 1 }}>
+                  <div style={{ fontSize: "13px", fontWeight: 700, marginBottom: 1 }}>
                     Dr. Washington Masapanta MsC
                   </div>
-                  <div style={{ fontSize: "7px", lineHeight: 1.15, fontWeight: 600 }}>
+                  <div style={{ fontSize: "8px", lineHeight: 1.15, fontWeight: 600 }}>
                     EMERGENCIAS Y DESASTRES / DIABETES Y OBESIDAD / SEGURIDAD Y SALUD OCUPACIONAL<br/>
                     DIABETES · HIPERTENSIÓN · TIROIDES · MEDICINA GENERAL · CARDIACA · GASTROINTESTINAL · SOBREPESO/OBESIDAD
                   </div>
-                  <div style={{ fontSize: "7.5px", marginTop: 2, fontWeight: 600 }}>
+                  <div style={{ fontSize: "8.5px", marginTop: 2, fontWeight: 600 }}>
                     📍 Gustavo Iturralde 1-67 y Calixto Pino · LATACUNGA · 📞 0995361606 · ✉ drwmasapanta@gmail.com
                   </div>
                 </div>
@@ -502,7 +502,7 @@ export default function PrescriptionDetail() {
                 border: "1px solid #000",
                 padding: "2px 5px",
                 marginBottom: 2,
-                fontSize: "8.5px",
+                fontSize: "9.5px",
                 fontWeight: 600
               }}>
                 SERVICIO / ESPECIALIDAD: {doctor.specialty}
@@ -513,7 +513,7 @@ export default function PrescriptionDetail() {
                 border: "1px solid #000",
                 borderBottom: "none",
                 padding: "2px 5px",
-                fontSize: "8.5px",
+                fontSize: "9.5px",
                 fontWeight: 700,
                 background: "#f5f5f5"
               }}>
@@ -530,7 +530,7 @@ export default function PrescriptionDetail() {
                   flex: 2,
                   borderRight: "1px solid #000",
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>NOMBRES:</b> {patient.name}
                 </div>
@@ -538,14 +538,14 @@ export default function PrescriptionDetail() {
                   width: "85px",
                   borderRight: "1px solid #000",
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>H.C.:</b> {patient.id}
                 </div>
                 <div style={{
                   flex: 1,
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>DOC:</b> {patient.cedula || "-"}
                 </div>
@@ -561,7 +561,7 @@ export default function PrescriptionDetail() {
                   width: "75px",
                   borderRight: "1px solid #000",
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>EDAD:</b> {calcAgeFromBirthdate(patient.birthdate) || patient.age || "-"} a
                 </div>
@@ -569,7 +569,7 @@ export default function PrescriptionDetail() {
                   width: "65px",
                   borderRight: "1px solid #000",
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>MESES:</b> {(() => {
                     if (!patient.birthdate) return "-";
@@ -585,14 +585,14 @@ export default function PrescriptionDetail() {
                   width: "75px",
                   borderRight: "1px solid #000",
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>SEXO:</b> M{patient.sex === "M" ? "☑" : "☐"} F{patient.sex === "F" ? "☑" : "☐"}
                 </div>
                 <div style={{
                   flex: 1,
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>ALÉRGICO:</b> {cleanAllergiesData(patient.allergies) || "Ninguno"}
                 </div>
@@ -608,14 +608,14 @@ export default function PrescriptionDetail() {
                   flex: 1,
                   borderRight: "1px solid #000",
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>DIAGNÓSTICO:</b> {diag}
                 </div>
                 <div style={{
                   width: "130px",
                   padding: "2px 5px",
-                  fontSize: "8.5px"
+                  fontSize: "9.5px"
                 }}>
                   <b>CIE10:</b> {Array.isArray(visit.diagnoses) && visit.diagnoses.length > 0
                     ? visit.diagnoses.map(d => d.cie10_code).join(", ")
@@ -663,7 +663,7 @@ export default function PrescriptionDetail() {
                         borderLeft: "none",
                         borderTop: "none",
                         padding: "2px 5px",
-                        fontSize: "8px",
+                        fontSize: "9px",
                         fontWeight: 700,
                         background: "#f5f5f5",
                         textAlign: "left",
@@ -676,7 +676,7 @@ export default function PrescriptionDetail() {
                         borderRight: "none",
                         borderTop: "none",
                         padding: "2px 5px",
-                        fontSize: "8px",
+                        fontSize: "9px",
                         fontWeight: 700,
                         background: "#f5f5f5",
                         textAlign: "left",
@@ -695,7 +695,7 @@ export default function PrescriptionDetail() {
                             border: "1px solid #000",
                             borderLeft: "none",
                             padding: "3px 5px",
-                            fontSize: "9px",
+                            fontSize: "10px",
                             fontWeight: 600,
                             verticalAlign: "top",
                             lineHeight: 1.25
@@ -706,7 +706,7 @@ export default function PrescriptionDetail() {
                             border: "1px solid #000",
                             borderRight: "none",
                             padding: "3px 5px",
-                            fontSize: "8.5px",
+                            fontSize: "9.5px",
                             verticalAlign: "top",
                             lineHeight: 1.25,
                             whiteSpace: "pre-wrap"
@@ -722,7 +722,7 @@ export default function PrescriptionDetail() {
                           border: "none",
                           padding: "35px 8px",
                           textAlign: "center",
-                          fontSize: "9px",
+                          fontSize: "10px",
                           opacity: 0.5
                         }}>
                           No hay medicamentos agregados
@@ -739,7 +739,7 @@ export default function PrescriptionDetail() {
                   border: "1px solid #000",
                   borderTop: "none",
                   padding: "3px 5px",
-                  fontSize: "8px",
+                  fontSize: "9px",
                   background: "#fffbf0",
                   lineHeight: 1.25
                 }}>
@@ -759,10 +759,10 @@ export default function PrescriptionDetail() {
                   flex: 1,
                   borderRight: "1px solid #000",
                   padding: "3px 5px",
-                  fontSize: "8px"
+                  fontSize: "9px"
                 }}>
                   <b>PRESCRIPTOR:</b> {doctor.fullName}<br/>
-                  <span style={{ fontSize: "7.5px" }}>
+                  <span style={{ fontSize: "8.5px" }}>
                     CÉDULA: {doctor.cedula} | REG. MÉDICO: {doctor.regMedico}
                   </span>
                 </div>
@@ -780,7 +780,7 @@ export default function PrescriptionDetail() {
                     marginTop: 12,
                     paddingTop: 2,
                     textAlign: "center",
-                    fontSize: "7.5px",
+                    fontSize: "8.5px",
                     fontWeight: 600
                   }}>
                     FIRMA Y SELLO
