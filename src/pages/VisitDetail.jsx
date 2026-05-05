@@ -338,7 +338,7 @@ export default function VisitDetail() {
   const doctor = {
     fullName: "DR. WASHINGTON MASAPANTA MSC.",
     specialty: "EMERGENCIAS, DIABETES Y OBESIDAD",
-    cedula: "0502391878",
+    cedula: "0502391873",
     phone: "0995361606",
     email: "drwmasapanta@gmail.com",
     address: "Cotopaxi - Latacunga Calle Gustavo Iturralde",
